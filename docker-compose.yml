@@ -1,0 +1,137 @@
+name: ontoportal
+
+x-app: &api
+  stdin_open: true
+  tty: true
+  depends_on: &depends_on
+    solr-term:
+      #condition: service_healthy
+      condition: service_started
+    solr-prop:
+      condition: service_started
+      #condition: service_healthy
+    redis-persistent:
+      condition: service_healthy
+    redis-goo-cache:
+      condition: service_healthy
+    redis-http-cache:
+      condition: service_healthy
+    mgrep:
+      condition: service_started
+      #      condition: service_healthy # FIXME: mgrep needs valid dictionary file to start which is not generated until ontology is processed
+    4store:
+      condition: service_started
+
+services:
+  api:
+    <<: *api
+    image: bioportal/ontologies_api:0.0.1
+    command: "bundle exec rackup -o 0.0.0.0 --port 9393"
+    env_file:
+      .env
+    volumes:
+      - history:/usr/local/hist
+      - repository:/srv/ontoportal/data/repository
+      - reports:/srv/ontoportal/data/reports
+    ports:
+      - 9393:9393
+    depends_on:
+      <<: *depends_on
+
+  ncbo_cron:
+    <<: *api
+    image: bioportal/ncbo_cron:0.0.1
+    command: "bundle exec bin/ncbo_cron"
+    env_file:
+      .env
+    volumes:
+      - history:/usr/local/hist
+      - repository:/srv/ontoportal/data/repository
+      - reports:/srv/ontoportal/data/reports
+      - mgrep:/srv/ontoportal/data/mgrep
+      - logs:/srv/ontoportal/ncbo_cron/logs
+    depends_on:
+      <<: *depends_on
+
+  redis-persistent:
+    image: redis
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: redis-cli ping
+      interval: 10s
+      timeout: 3s
+      retries: 10
+
+  redis-goo-cache:
+    image: redis
+    command: ["redis-server", "--save", "", "--maxmemory-policy", "allkeys-lru", "--maxmemory", "128000000"]
+    healthcheck:
+      test: redis-cli ping
+      interval: 10s
+      timeout: 3s
+      retries: 10
+
+  redis-http-cache:
+    image: redis
+    command: ["redis-server", "--save", "", "--maxmemory-policy", "volatile-ttl", "--maxmemory", "128000000"]
+    healthcheck:
+      test: redis-cli ping
+      interval: 10s
+      timeout: 3s
+      retries: 10
+
+  4store:
+    image: bde2020/4store
+    volumes:
+     - 4store_data:/var/lib/4store
+    command: bash -c "4s-backend ontoportal_kb && 4s-httpd -D -s-1 -p 9000 ontoportal_kb"
+
+  solr-term:
+    image: solr:9.1
+    volumes:
+      - solr-term_data:/var/solr
+      - ../ontologies_linked_data/test/solr/configsets/:/configsets:ro
+    command: solr-precreate term_search_core1 /configsets/term_search
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:8983/solr/term_search_core1/admin/ping?wt=json | grep -iq '\"status\":\"OK\"}' || exit 1"]
+      start_period: 3s
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  solr-prop:
+    image: solr:9.1
+    volumes:
+      - solr-prop_data:/var/solr
+      - ../ontologies_linked_data/test/solr/configsets/:/configsets:ro
+    command: solr-precreate prop_search_core1 /configsets/property_search
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:8983/solr/prop_search_core1/admin/ping?wt=json | grep -iq '\"status\":\"OK\"}' || exit 1"]
+      start_period: 3s
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  mgrep:
+    image: ontoportal/mgrep:0.0.1
+    volumes:
+      - mgrep:/srv/mgrep/dictionary
+    healthcheck:
+      test: ["CMD", "nc", "-z", "-v", "localhost", "55555"]
+      start_period: 3s
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  bundle:
+  4store_data:
+  repository:
+  mgrep:
+  reports:
+  redis_data:
+  history:
+  logs:
+  solr-term_data:
+  solr-prop_data:
