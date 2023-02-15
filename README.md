@@ -1,7 +1,12 @@
-# ontoportal docker
+# OntoPortal docker development environment
 
-This repo contains docker compose and [DIP][] configuration for running and
-developing OntoPortal stack.
+This repo contains docker compose and [DIP](https://github.com/bibendi/dip) configuration for running and
+developing OntoPortal stack in 3 different ways:
+
+1. docker-compose.backend_only.yml contains just the backend services required for developing and running API on your local system.
+2. Run API/ncbo_cron and depenencies in docker using DIP
+3. Run API/ncbo_cron in docker with mounted source code volumes from your local system. This will allow editing files on your local machine while running code inside docker container. 
+
 
 ```sh
 # clone this repo
@@ -16,9 +21,9 @@ cd ontologies_linked_data
 
 cd ../ontoportal_docker
 
-# run provisioning via dip
-# export bioportal APIKEY 
+# export bioportal APIKEY which is needed for importing ontologies from bioportal when provisioning
 export BP_APIKEY=<YOUR BIOPORTAL API KEY>
+# run provisioning via dip 
 dip provision
 ```
 
@@ -35,4 +40,5 @@ dip provision
 
 `dip api rackup` starts api which you would be able to access on
 http://localhost:9393
+
 
