@@ -25,7 +25,7 @@ cd ../ontoportal_docker
 bundle install
 
 # export bioportal APIKEY which is needed for importing ontologies from bioportal when provisioning
-export BP_APIKEY=<YOUR BIOPORTAL API KEY>
+export BP_APIKEY=<YOUR ONTOPORTAL API KEY>
 # run provisioning via dip 
 dip provision
 ```
