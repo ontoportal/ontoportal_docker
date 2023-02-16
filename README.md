@@ -3,7 +3,7 @@
 This repo contains docker compose and [DIP](https://github.com/bibendi/dip) configuration for running and
 developing OntoPortal stack in 3 different ways:
 
-1. docker-compose.backend_only.yml contains just the backend services required for developing and running API on your local system.
+1. docker-compose.backend_only.yml contains just the backend services required for developing and running API on your local system.  To take advantage of that you would need to run `docker compose -f docker-compose.backend_only.yml up -d`
 2. Run API/ncbo_cron and depenencies in docker using DIP
 3. Run API/ncbo_cron in docker with mounted source code volumes from your local system. This will allow editing files on your local machine while running code inside docker container. 
 
