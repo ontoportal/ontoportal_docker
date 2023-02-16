@@ -91,9 +91,9 @@ provision:
   # - dip solr-term-init
   # - dip solr-prop-init
   - dip cron bundle exec rake user:create['admin','admin@nodomain.org','12345678-1234-1234-9999-aabbccddeeff']
-  - dip cron bundle exec bin/ncbo_ontology_import --from-apikey ${BP_APIKEY} -o STY --from https://data.bioontology.org --admin-user admin
-  - dip cron bundle exec bin/ncbo_ontology_pull -o STY
-  - dip cron bundle exec bin/ncbo_ontology_process -o STY
+  - dip cron bundle exec bin/ncbo_ontology_import --from-apikey ${OP_APIKEY} -o ${STARTER_ONTOLOGY} --from ${OP_API_URL} --admin-user admin
+  - dip cron bundle exec bin/ncbo_ontology_pull -o ${STARTER_ONTOLOGY}
+  - dip cron bundle exec bin/ncbo_ontology_process -o ${STARTER_ONTOLOGY}
   #- dip cron bundle install
   #- dip api bundle install
   #- dip bash -c bin/setup
