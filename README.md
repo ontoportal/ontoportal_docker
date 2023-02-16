@@ -39,9 +39,23 @@ dip provision
 - run ontology pull script
 - process STY ontology
 
-`dip ls` will list available dip commands
+# DIP commands:
 
-`dip api rackup` starts api which you would be able to access on
-http://localhost:9393
+list available dip commands
 
+`dip ls`
 
+starts api which you would be able to access on http://localhost:9393
+
+`dip api rackup` 
+
+run ncbo_cron scripts:
+
+`dip cron bundle exe bin/<script>`
+
+For example, to import new ontology from BioPortal, pull and process it you would run:
+```sh
+dip cron bundle exec bin/ncbo_ontology_import --from-apikey ${BP_APIKEY} -o PO --from https://data.bioontology.org --admin-user admin
+dip cron bundle exec bin/ncbo_ontology_pull -o PO
+dip cron bundle exec bin/ncbo_ontology_process -o PO
+```
