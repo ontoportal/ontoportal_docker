@@ -63,7 +63,7 @@ dip cron bundle exec bin/ncbo_ontology_process -o PO
 
 # API Development
 
-When developing API it is possible to mount the source code from your local directory inside the container so that it runs your latest changes. To do taht you need to make changes to dip.yml file and uncomment line containing `# - docker-compose.dev.yml`.  docker-compose.dev.yml contains overwrights to the docker-compose.yml which mounts your local directory.
+When developing API it is possible to mount the source code from your local directory inside the container so that it runs your latest changes. To do that you need to make changes to dip.yml file and uncomment the line containing `# - docker-compose.dev.yml`.  docker-compose.dev.yml contains overwrights to the docker-compose.yml which mounts your local directory.
 
 to install gems inside the API container you would need to run `dip api bundle install` or `dip api bundle update` to get newer gems
 
