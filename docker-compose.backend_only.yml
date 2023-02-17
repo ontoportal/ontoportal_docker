@@ -22,11 +22,15 @@ services:
 
   solr:
     image: ontoportal/solr-ut:0.1
+    ports:
+      - "8983:8983"
 
   mgrep:
-    image: ontoportal/mgrep-ncbo:0.1
+    image: ontoportal/mgrep:0.0.1
+    # volumes:
+    #  - mgrep:/srv/mgrep/dictionary
     ports:
-      - "55555:55556" #port 55555 is not avaiable on mac so we are using 55556
+      - "55556:55555" #port 55555 is not avaiable on mac so you need to choose another port and update .env
 
   agraph:
     image: franzinc/agraph:v7.3.1
