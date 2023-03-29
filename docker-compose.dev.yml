@@ -1,25 +1,17 @@
-# docker compose for running ontoportal backend for development
+# docker compose overwrite file for running ontoportal backend for development
 #
 # it expects to have git repos for ontologies_api, ncbo_cron and ontologies_linked_data
 # to be in the same directory as ontoportal_docker which will be mounted on the container
 # giving ability to run code from those directories inside container
-#
+
 x-app: &api
   build: &build
     args:
       RUBY_VERSION: '2.7'
-  # Increase the version number in the image tag every time Dockerfile or its arguments is changed
-  #  image: ontologies_api:0.0.1  #!!!!!!!!!!! will this conflict with image names we use for unit tests?
   stdin_open: true
   tty: true
   env_file:
     .env
-  volumes:
-    # bundle volume for hosting gems installed by bundle; it helps in local development with gem udpates
-    - bundle:/srv/ontoportal/bundle
-    - history:/usr/local/hist
-
-name: ontoportal-dev
 
 services:
   api:
@@ -27,11 +19,10 @@ services:
     build:
       <<: *build
       context: ../ontologies_api
-    image: ontoportal_api:0.0.1
-    env_file:
-      .env
+    image: ontoportal_api:0.0.2
     command: "bundle exec rackup -o 0.0.0.0 --port 9393"
     volumes:
+      - history:/usr/local/hist
       # bundle volume for hosting gems installed by bundle; it helps in local development with gem udpates
       - bundle:/srv/ontoportal/bundle
       # api code
@@ -46,12 +37,9 @@ services:
     build:
       <<: *build
       context: ../ncbo_cron
-    image: ncbo_cron:0.0.1
-    command: "bundle exec bin/ncbo_cron"
-    env_file:
-     .env
+    image: ncbo_cron:0.0.2
     volumes:
+      - history:/usr/local/hist
       # bundle volume for hosting gems installed by bundle; it helps in local development with gem udpates
       - bundle:/srv/ontoportal/bundle
       - ./../ncbo_cron:/srv/ontoportal/ncbo_cron
-

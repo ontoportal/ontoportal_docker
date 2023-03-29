@@ -10,7 +10,7 @@ compose:
   files:
     - docker-compose.yml
     # uncomment docker-compose.dev.yml for active development; it will mount local project directory in the container
-    # - docker-compose.dev.yml
+    #  - docker-compose.dev.yml
   project_name: ontoportal
 
 interaction:
@@ -28,7 +28,7 @@ interaction:
         service: api
         command: bundle exec rackup -o 0.0.0.0 --port 9393
         compose:
-          run_options: [service-ports]
+          run_options: [ service-ports ]
       bash:
         # Run a api container without any dependent services
         description: Start shell on the API container (or open a shell without deps)
@@ -43,12 +43,8 @@ interaction:
         compose_run_options: [ no-deps ]
       # A shortcut to run unit tests
       test:
-        description: Run unit tests with 4store backend
+        description: Run API unit tests with 4store backend
         service: api
-        command: bundle exec rake test
-      test-ag:
-        description: Run unit tests with AlegroGraph backend
-        service: api-agraph
         command: bundle exec rake test
 
   cron:
@@ -61,10 +57,16 @@ interaction:
         service: ncbo_cron
         command: bundle
 
-  'redis-cli':
+  redis-cli:
     description: Run Redis console
     service: redis-ut
     command: redis-cli -h redis-ut
+
+  ag-create-repo:
+    description: Create AG database and set up permissions
+    service: agraph
+    command: sh -c "agraph-control --config /agraph/etc/agraph.cfg start && agtool repos create ontoportal && agtool users add anonymous && agtool users grant anonymous root:ontoportal:rw"
+    compose_run_options: [ no-deps ]
 
   4store-create-kb:
     description: Create 4store KB
@@ -85,15 +87,15 @@ interaction:
     compose_run_options: [ no-deps ]
 
 provision:
-  # example on how to provision API. It requires BP_APIKEY env variable
+  # example on how to provision API. It requires OP_APIKEY env variable
   - dip compose down --volumes
   - dip 4store-create-kb
+
   # - dip solr-term-init
   # - dip solr-prop-init
-  - dip cron bundle exec rake user:create['admin','admin@nodomain.org','12345678-1234-1234-9999-aabbccddeeff']
-  - dip cron bundle exec bin/ncbo_ontology_import --from-apikey ${OP_APIKEY} -o ${STARTER_ONTOLOGY} --from ${OP_API_URL} --admin-user admin
-  - dip cron bundle exec bin/ncbo_ontology_pull -o ${STARTER_ONTOLOGY}
-  - dip cron bundle exec bin/ncbo_ontology_process -o ${STARTER_ONTOLOGY}
+  - dip cron bundle exec rake user:create[admin,admin@nodomain.org]
+  - dip cron bundle exec 'bin/ncbo_ontology_import --admin-user admin --ontologies ${STARTER_ONTOLOGY} --from-apikey ${OP_APIKEY} --from ${OP_API_URL}'
+  - dip cron bundle exec 'bin/ncbo_ontology_pull -o ${STARTER_ONTOLOGY}'
+  - dip cron bundle exec 'bin/ncbo_ontology_process -o ${STARTER_ONTOLOGY}'
   #- dip cron bundle install
   #- dip api bundle install
-  #- dip bash -c bin/setup

@@ -1,4 +1,4 @@
-# docker compose file for spinning up backend services only with ports mapped to local host
+# docker compose file for spinning up backend services with ports mapped to local host
 # This is useful for running api on local system (outside of docker container) while accessing
 # dockerised backend services
 
@@ -11,6 +11,7 @@ services:
 
   4store:
     image: bde2020/4store
+    platform: linux/amd64
     #volume: fourstore:/var/lib/4store
     command: >
       bash -c "4s-backend-setup --segments 4 ontoportal_kb
@@ -22,11 +23,13 @@ services:
 
   solr:
     image: ontoportal/solr-ut:0.1
+    platform: linux/amd64
     ports:
       - 8983:8983
 
   mgrep:
     image: ontoportal/mgrep:0.0.2
+    platform: linux/amd64
     # volumes:
     #  - mgrep:/srv/mgrep/dictionary
     ports:
@@ -34,6 +37,7 @@ services:
 
   agraph:
     image: franzinc/agraph:v7.3.1
+    platform: linux/amd64
     environment:
       - AGRAPH_SUPER_USER=test
       - AGRAPH_SUPER_PASSWORD=xyzzy
