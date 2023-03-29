@@ -69,3 +69,6 @@ to install gems inside the API container you would need to run `dip api bundle i
 
 to test your changes you would need to run `dip api test`
 
+# AllegroGraph 
+
+Ontoportal has support for running AllegroGraph as triple store backend.  To change default 4store triple store to AllgegroGraph you would need to rename dip.override.yml.sample to dip.override.yml    
