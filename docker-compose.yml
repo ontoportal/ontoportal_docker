@@ -3,13 +3,13 @@ name: ontoportal
 x-app: &api
   stdin_open: true
   tty: true
+  env_file:
+    .env
   depends_on: &depends_on
     solr-term:
-      #condition: service_healthy
-      condition: service_started
+      condition: service_healthy
     solr-prop:
-      condition: service_started
-      #condition: service_healthy
+      condition: service_healthy
     redis-persistent:
       condition: service_healthy
     redis-goo-cache:
@@ -18,14 +18,14 @@ x-app: &api
       condition: service_healthy
     mgrep:
       condition: service_started
-      #      condition: service_healthy # FIXME: mgrep needs valid dictionary file to start which is not generated until ontology is processed
+      # condition: service_healthy # FIXME: mgrep needs valid dictionary file to start which is not generated until ontology is processed
     4store:
       condition: service_started
 
 services:
   api:
     <<: *api
-    image: bioportal/ontologies_api:0.0.1
+    image: bioportal/ontologies_api:0.0.2
     command: "bundle exec rackup -o 0.0.0.0 --port 9393"
     env_file:
       .env
@@ -35,23 +35,17 @@ services:
       - reports:/srv/ontoportal/data/reports
     ports:
       - 9393:9393
-    depends_on:
-      <<: *depends_on
 
   ncbo_cron:
     <<: *api
-    image: bioportal/ncbo_cron:0.0.1
+    image: bioportal/ncbo_cron:0.0.2
     command: "bundle exec bin/ncbo_cron"
-    env_file:
-      .env
     volumes:
       - history:/usr/local/hist
       - repository:/srv/ontoportal/data/repository
       - reports:/srv/ontoportal/data/reports
       - mgrep:/srv/ontoportal/data/mgrep
       - logs:/srv/ontoportal/ncbo_cron/logs
-    depends_on:
-      <<: *depends_on
 
   redis-persistent:
     image: redis
@@ -83,6 +77,7 @@ services:
 
   4store:
     image: bde2020/4store
+    platform: linux/amd64
     volumes:
      - 4store_data:/var/lib/4store
     command: bash -c "4s-backend ontoportal_kb && 4s-httpd -D -s-1 -p 9000 ontoportal_kb"
@@ -115,6 +110,7 @@ services:
 
   mgrep:
     image: ontoportal/mgrep:0.0.2
+    platform: linux/amd64
     volumes:
       - mgrep:/srv/mgrep/dictionary
     healthcheck:
@@ -127,6 +123,7 @@ services:
 volumes:
   bundle:
   4store_data:
+  ag_data:
   repository:
   mgrep:
   reports:
