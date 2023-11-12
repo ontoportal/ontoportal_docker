@@ -22,8 +22,7 @@ services:
 
 
   solr:
-    image: ontoportal/solr-ut:0.1
-    platform: linux/amd64
+    image: ontoportal/solr-ut:0.0.2
     ports:
       - 8983:8983
 
@@ -36,7 +35,7 @@ services:
       - 55556:55556 #port 55555 is not avaiable on mac so you need to choose another port and update .env
 
   agraph:
-    image: franzinc/agraph:v7.3.1
+    image: franzinc/agraph:v7.4.0.t3
     platform: linux/amd64
     environment:
       - AGRAPH_SUPER_USER=test

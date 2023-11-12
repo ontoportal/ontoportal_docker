@@ -34,7 +34,7 @@ services:
     <<: *api
 
   agraph:
-    image: franzinc/agraph:v7.3.1
+    image: franzinc/agraph:v7.4.0.t3
     platform: linux/amd64
     environment:
       - AGRAPH_SUPER_USER=test
