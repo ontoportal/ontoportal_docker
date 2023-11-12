@@ -1,0 +1,113 @@
+#!/usr/bin/env ruby
+
+require 'optparse'
+
+# Default values
+options = {
+  api_key: nil,
+  api_url: 'https://data.bioontology.org',
+  starter_ontology: 'STY'
+}
+
+# OptionParser configuration
+OptionParser.new do |opts|
+  opts.banner = "Usage: #{$PROGRAM_NAME} -k API_KEY -u API_URL -s STARTER_ONTOLOGY"
+
+  opts.on("-k", "--api-key API_KEY", "Your Ontoportal API key") do |api_key|
+    options[:api_key] = api_key
+  end
+
+  opts.on("-u", "--api-url API_URL", "Ontoportal API URL (default: https://data.bioontology.org)") do |api_url|
+    options[:api_url] = api_url
+  end
+
+  opts.on("-s", "--starter-ontology [STARTER_ONTOLOGY]", "Starter ontology code (default: STY)") do |starter_ontology|
+    options[:starter_ontology] = starter_ontology || 'STY'
+  end
+
+  opts.on_tail("-h", "--help", "Show this message") do
+    puts opts
+    exit
+  end
+end.parse!
+
+# Check if required arguments are provided
+unless options[:api_key]
+  puts "Error: Missing required arguments. Please provide API_KEY."
+  puts "See help using -h, --help"
+  exit 1
+end
+
+puts "Running the Ontoportal API and CRON Setup..."
+
+# Step 1: Clone ontologies_linked_data repo
+puts "Cloning ontologies_linked_data repo..."
+system("git clone --depth=1 git@github.com:ontoportal-lirmm/ontologies_linked_data.git")
+
+# Step 2: Generate configsets
+puts "Generating Solr configsets..."
+Dir.chdir("ontologies_linked_data") do
+  unless system("./test/solr/generate_ncbo_configsets.sh")
+    puts "Error: Failed to generate Solr configsets."
+    exit 1
+  end
+end
+
+
+puts "Navigating to ontoportal_docker directory..."
+Dir.chdir("../ontoportal_docker") || exit(1)
+
+# Step 4: Install DIP
+puts "Installing DIP (Docker in Production) dependencies..."
+unless system("bundle install")
+  puts "Error: Failed to install DIP dependencies."
+  exit 1
+end
+
+# Copy .env.sample to .env
+unless system("cp .env.sample .env")
+  puts "Error: Failed to copy .env.sample to .env."
+  exit 1
+end
+
+env_file_path = './.env'
+# Read the content of .env file
+begin
+  env_content = File.read(env_file_path)
+rescue StandardError => e
+  puts "Error: Failed to read .env file. #{e.message}"
+  exit 1
+end
+
+# Step 5: Export bioportal APIKEY, update OP_APIKEY and OP_API_URL in .env file
+puts "Exporting bioportal APIKEY..."
+env_content.gsub!(/OP_APIKEY=<YOUR ONTOPORTAL API KEY>/, "OP_APIKEY=#{options[:api_key]}")
+
+# Step 6: Update OP_API_URL in .env file with provided API_URL argument
+puts "Updating OP_API_URL in .env file..."
+env_content.gsub!(/OP_APIKEY=<YOUR ONTOPORTAL API KEY>/, "OP_API_URL=#{options[:api_url]}")
+
+
+# Step 7: Update STARTER_ONTOLOGY in .env file with provided STARTER_ONTOLOGY argument
+puts "Updating STARTER_ONTOLOGY in .env file..."
+env_content.gsub!(/STARTER_ONTOLOGY="STY"/, "STARTER_ONTOLOGY=#{options[:starter_ontology]}")
+
+# Write the modified content back to the .env file
+begin
+  File.write(env_file_path, env_content)
+rescue StandardError => e
+  puts "Error: Failed to write to .env file. #{e.message}"
+  exit 1
+end
+
+# Step 8: Run provisioning via dip
+puts "Running provisioning via DIP..."
+unless system("dip provision")
+  puts "Error: Failed to run provisioning via DIP."
+  exit 1
+end
+
+puts "Setup completed successfully!"
+
+puts "Running api via DIP..."
+system("dip api rackup")
