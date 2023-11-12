@@ -25,7 +25,7 @@ x-app: &api
 services:
   api:
     <<: *api
-    image: bioportal/ontologies_api
+    image: ${IMAGE_REPOSITORY}/ontologies_api:${IMAGE_TAG}
     command: "bundle exec rackup -o 0.0.0.0 --port 9393"
     env_file:
       .env

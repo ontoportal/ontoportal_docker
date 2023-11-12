@@ -21,6 +21,15 @@ OptionParser.new do |opts|
     options[:api_url] = api_url
   end
 
+  opts.on("-r", "--docker-hub-repository DOCKER_HUB_REPOSITORY", "Ontoportal API image repository (default: bioportal)") do |image_repository|
+    options[:image_repository] = image_repository || 'bioportal'
+  end
+
+  opts.on("-t", "--image-tag DOCKER_IMAGE_TAG", "Ontoportal API image version (default: latest)") do |image_tag|
+    options[:image_tag] = image_tag || 'latest'
+  end
+
+
   opts.on("-s", "--starter-ontology [STARTER_ONTOLOGY]", "Starter ontology code (default: STY)") do |starter_ontology|
     options[:starter_ontology] = starter_ontology || 'STY'
   end
@@ -52,7 +61,6 @@ Dir.chdir("ontologies_linked_data") do
     exit 1
   end
 end
-
 
 puts "Navigating to ontoportal_docker directory..."
 Dir.chdir("../ontoportal_docker") || exit(1)
@@ -87,10 +95,18 @@ env_content.gsub!(/OP_APIKEY=<YOUR ONTOPORTAL API KEY>/, "OP_APIKEY=#{options[:a
 puts "Updating OP_API_URL in .env file..."
 env_content.gsub!(/OP_APIKEY=<YOUR ONTOPORTAL API KEY>/, "OP_API_URL=#{options[:api_url]}")
 
-
 # Step 7: Update STARTER_ONTOLOGY in .env file with provided STARTER_ONTOLOGY argument
 puts "Updating STARTER_ONTOLOGY in .env file..."
 env_content.gsub!(/STARTER_ONTOLOGY="STY"/, "STARTER_ONTOLOGY=#{options[:starter_ontology]}")
+
+# Step 7: Update IMAGE_REPOSITORY in .env file with provided IMAGE_REPOSITORY argument
+puts "Updating IMAGE_REPOSITORY in .env file..."
+env_content.gsub!(/IMAGE_REPOSITORY=bioportal/, "IMAGE_REPOSITORY=#{options[:image_repository]}")
+
+
+# Step 7: Update IMAGE_TAG in .env file with provided IMAGE_TAG argument
+puts "Updating IMAGE_TAG in .env file..."
+env_content.gsub!(/IMAGE_TAG=latest/, "IMAGE_TAG=#{options[:image_tag]}")
 
 # Write the modified content back to the .env file
 begin
