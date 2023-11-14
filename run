@@ -51,7 +51,7 @@ puts "Running the Ontoportal API and CRON Setup..."
 
 # Step 1: Clone ontologies_linked_data repo
 puts "Cloning ontologies_linked_data repo..."
-system("git clone --depth=1 git@github.com:ontoportal-lirmm/ontologies_linked_data.git")
+system("git clone --depth=1 https://github.com/ontoportal-lirmm/ontologies_linked_data.git")
 
 # Step 2: Generate configsets
 puts "Generating Solr configsets..."
@@ -93,7 +93,7 @@ env_content.gsub!(/OP_APIKEY=<YOUR ONTOPORTAL API KEY>/, "OP_APIKEY=#{options[:a
 
 # Step 6: Update OP_API_URL in .env file with provided API_URL argument
 puts "Updating OP_API_URL in .env file..."
-env_content.gsub!(/OP_APIKEY=<YOUR ONTOPORTAL API KEY>/, "OP_API_URL=#{options[:api_url]}")
+env_content.gsub!(/OP_API_URL="https:\/\/data.bioontology.org"/, "OP_API_URL=#{options[:api_url]}")
 
 # Step 7: Update STARTER_ONTOLOGY in .env file with provided STARTER_ONTOLOGY argument
 puts "Updating STARTER_ONTOLOGY in .env file..."
