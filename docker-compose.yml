@@ -1,5 +1,3 @@
-name: ontoportal
-
 x-app: &api
   stdin_open: true
   tty: true
