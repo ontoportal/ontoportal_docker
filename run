@@ -5,25 +5,37 @@ API_URL="https://data.bioontology.org"
 STARTER_ONTOLOGY="STY"
 IMAGE_REPOSITORY="bioportal"
 IMAGE_TAG="latest"
+PROVISION=true  # Set the default value to true
+
+# Function to display help message
+display_help() {
+    echo "Usage: $0 [-k API_KEY] [-u API_URL] [-r IMAGE_REPOSITORY] [-t IMAGE_TAG] [-s STARTER_ONTOLOGY] [--no-provision]"
+    exit 0
+}
 
 # Parse command line options
-while getopts ":k:u:r:t:s:" opt; do
-case $opt in
-  k) API_KEY="$OPTARG";;
-  u) API_URL="$OPTARG";;
-  r) IMAGE_REPOSITORY="$OPTARG";;
-  t) IMAGE_TAG="$OPTARG";;
-  s) STARTER_ONTOLOGY="$OPTARG";;
-  \?) echo "Invalid option: -$OPTARG" >&2; exit 1;;
-  :) echo "Option -$OPTARG requires an argument." >&2; exit 1;;
-esac
+while getopts ":k:u:r:t:s:-:h" opt; do
+    case $opt in
+        k) API_KEY="$OPTARG";;
+        u) API_URL="$OPTARG";;
+        r) IMAGE_REPOSITORY="$OPTARG";;
+        t) IMAGE_TAG="$OPTARG";;
+        s) STARTER_ONTOLOGY="$OPTARG";;
+        h) display_help;;
+        -) case "${OPTARG}" in
+               no-provision) PROVISION=false;;
+               help) display_help;;
+           esac;;
+        \?) echo "Invalid option: -$OPTARG" >&2; exit 1;;
+        :) echo "Option -$OPTARG requires an argument." >&2; exit 1;;
+    esac
 done
 
 # Check if required arguments are provided
 if [ -z "$API_KEY" ]; then
-echo "Error: Missing required argument. Please provide API_KEY."
-echo "See help using -h, --help"
-exit 1
+    echo "Error: Missing required argument. Please provide API_KEY."
+    echo "See help using -h, --help"
+    exit 1
 fi
 
 echo "Running the Ontoportal API and CRON Setup..."
@@ -44,10 +56,10 @@ fi
 echo "Navigating to ontoportal_docker directory..."
 cd .. || exit 1
 
-# Step 4: Install DIP
-echo "Installing DIP (Docker in Production) dependencies..."
+# Step 4: Install
+echo "Installing  (Docker in Production) dependencies..."
 if ! bundle install; then
-    echo "Error: Failed to install DIP dependencies."
+    echo "Error: Failed to install  dependencies."
     exit 1
 fi
 
@@ -85,32 +97,37 @@ env_content="${env_content//IMAGE_TAG=latest/IMAGE_TAG=$IMAGE_TAG}"
 # Write the modified content back to the .env file
 echo "$env_content" > "$env_file_path"
 
-# Step 8: Run provisioning via dip
-echo "Running provisioning via DIP..."
-commands=(
-    'docker compose down --volumes > /dev/null 2>&1'
-    'docker compose run --rm  4store bash -c "4s-backend-setup ontoportal_kb" > /dev/null 2>&1 '
-    'docker compose run --rm  ncbo_cron bundle exec rake user:create[admin,admin@nodomain.org] > /dev/null 2>&1'
-    "docker compose run --rm  ncbo_cron bundle exec 'bin/ncbo_ontology_import --admin-user admin --ontologies $STARTER_ONTOLOGY --from-apikey $API_KEY --from $API_URL' > /dev/null 2>&1 "
-    "docker compose run --rm  ncbo_cron bundle exec 'bin/ncbo_ontology_pull -o $STARTER_ONTOLOGY' > /dev/null 2>&1 "
-    "docker compose run --rm  ncbo_cron bundle exec 'bin/ncbo_ontology_process -o ${STARTER_ONTOLOGY}' > /dev/null 2>&1"
-)
+# Step 8: Run provisioning
+if [ "$PROVISION" = true ]; then
+    echo "Running the Ontoportal API and CRON Setup..."
 
-for cmd in "${commands[@]}"; do
-    echo "Run: $cmd"
-    if ! eval "$cmd"; then
-      echo "Error: Failed to run provisioning via DIP.  $cmd"
-      exit 1
-    fi
-done
+    # ... (rest of the script remains unchanged)
 
-echo "Setup completed successfully!"
+    # Step 8: Run provisioning
+    echo "Running provisioning ..."
+    commands=(
+        'docker compose down --volumes > /dev/null 2>&1'
+        'docker compose run --rm  4store bash -c "4s-backend-setup ontoportal_kb" > /dev/null 2>&1 '
+        'docker compose run --rm  ncbo_cron bundle exec rake user:create[admin,admin@nodomain.org] > /dev/null 2>&1'
+        "docker compose run --rm  ncbo_cron bundle exec 'bin/ncbo_ontology_import --admin-user admin --ontologies $STARTER_ONTOLOGY --from-apikey $API_KEY --from $API_URL' > /dev/null 2>&1 "
+        "docker compose run --rm  ncbo_cron bundle exec 'bin/ncbo_ontology_pull -o $STARTER_ONTOLOGY' > /dev/null 2>&1 "
+        "docker compose run --rm  ncbo_cron bundle exec 'bin/ncbo_ontology_process -o ${STARTER_ONTOLOGY}' > /dev/null 2>&1"
+    )
+
+    for cmd in "${commands[@]}"; do
+        echo "Run: $cmd"
+        if ! eval "$cmd"; then
+          echo "Error: Failed to run provisioning .  $cmd"
+          exit 1
+        fi
+    done
+
+    echo "Setup completed successfully!"
+fi
 
 
 
-
-
-echo "Running api via DIP..."
+echo "Running api ..."
 docker compose run --service-ports --rm  -d api
 
  # Wait for API to be ready (adjust the sleep time accordingly)
