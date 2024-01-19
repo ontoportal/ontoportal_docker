@@ -1,0 +1,137 @@
+#!/usr/bin/env bash
+
+run_api(){
+	get_files_from_github(){
+		echo "[+] Getting compose file from ontologies_api"
+		curl -L https://raw.githubusercontent.com/ontoportal-lirmm/ontologies_api/development/docker-compose.yml -o docker-compose_api_development.yml
+		curl -L https://raw.githubusercontent.com/ontoportal-lirmm/ontologies_api/development/.env.sample -o .env_api
+	}
+
+	update_compose_file(){
+		echo "[+] Changing some lines"
+		file_path="./docker-compose_api_development.yml"
+		sed -i 's#- \.:\/srv\/ontoportal\/ontologies_api#- app_api:/srv/ontoportal/ontologies_api#' "$file_path"
+		sed -i 's/\.env/.env_api/' "$file_path"
+		sed -i 's#./test/solr/configsets:/configsets:ro#./ontologies_linked_data/test/solr/configsets/:/configsets:ro#' "$file_path"
+		sed -i '/^volumes:/a \ \ app_api:' "$file_path"
+		#sed -i 's/image: agroportal\/ontologies_api:development/image: agroportal\/ontologies_api:stage/' "$file_path"
+	}
+
+	update_env_api(){
+		file_path=".env_api"
+		echo >> "$file_path"
+		echo "REDIS_GOO_CACHE_HOST=redis-ut" >> "$file_path"
+		echo "REDIS_HTTP_CACHE_HOST=redis-ut" >> "$file_path"
+		echo "REDIS_PERSISTENT_HOST=redis-ut" >> "$file_path"
+	}
+
+	run_the_api_service(){
+		echo "[+] Running api script"
+		./run_api.sh dev --api-url http://api-service:9393
+	}
+
+	get_files_from_github
+	update_compose_file
+	update_env_api
+	run_the_api_service
+
+}
+
+run_ui(){
+	get_files_from_github(){
+		echo "[+] Getting compose file from bioportal_web_ui"
+		curl -L https://raw.githubusercontent.com/ontoportal-lirmm/bioportal_web_ui/development/docker-compose.yml -o docker-compose_ui_development.yml
+		curl -L https://raw.githubusercontent.com/ontoportal-lirmm/bioportal_web_ui/development/.env.sample -o .env_ui
+	}
+
+	update_compose_file(){
+		echo "[+] Changing some lines"
+		file_path="./docker-compose_ui_development.yml"
+		sed -i 's/- ".env"/- .env_ui/' "$file_path"
+		sed -i 's/- .:\/app/- app_web:\/app/' "$file_path"
+		sed -i 's/retries: 3/retries: 100/' "$file_path"
+		sed -i '/^volumes:/a \ \ app_web:' "$file_path"
+		#sed -i 's/image: agroportal\/ontoportal_web_ui:development/image: agroportal\/ontoportal_web_ui:stage/' "$file_path"
+	}
+
+	run_the_ui_script(){
+		echo "[+] Running ui script"
+		./run_ui.sh dev --api-url http://api-service:9393 --api-key 72c72cba-ad45-4785-b94e-483fa55cdddb
+	}
+
+	get_files_from_github
+	update_compose_file
+	run_the_ui_script
+
+}
+
+
+stop_services(){
+	docker container stop api-service
+	docker container stop ui-service
+}
+
+
+show_help(){
+	echo "HELP: ontoportal [clean/start/stop]"
+}
+
+clean_containers(){
+	echo "[+] Cleaning the containers"
+	docker stop $(docker ps -aq) 2>/dev/null
+	docker container rm -f $(docker ps -aq) 2>/dev/null ; docker volume rm $(docker volume ls -q) ; docker buildx prune -f ; docker network prune -f
+	rm .env*
+	rm docker-compose*
+	rm ontologies_linked_data -rf
+	echo "[+] Finishing cleaning the containers"
+}
+
+
+show_running_containers(){
+	docker container ls -a
+}
+
+show_logs_api(){
+	docker logs -f api-service
+}
+
+
+show_logs_ui(){
+	docker logs -f ui-service
+}
+
+
+case "$1" in
+  "start")
+		#clean_containers
+    run_api
+    run_ui
+    ;;
+  "logs")
+		case "$2" in
+			"api")
+				show_logs_api
+			;;
+			"ui")
+				show_logs_ui
+			;;
+			*)
+				show_running_containers
+				;;
+		esac
+    ;;
+  "stop")
+    stop_services
+    ;;
+  "clean")
+    clean_containers
+    ;;
+  "help")
+    show_help
+    ;;
+  *)
+    show_help
+    exit 1
+    ;;
+esac
+

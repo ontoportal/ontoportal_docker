@@ -1,0 +1,39 @@
+# Name of your application. Used to uniquely configure containers.
+service: ontoportal_docker
+
+# Name of the container image.
+image: imadpyth/ontoportal_docker
+
+# Deploy to these servers.
+servers:
+  - 127.0.0.1
+  
+run_directory: /root/app
+
+# Credentials for your image host.
+registry:
+  # Specify the registry server, if you're not using Docker Hub
+  # server: registry.digitalocean.com / ghcr.io / ...
+  username: imadpyth
+
+  # Always use an access token rather than real password when possible.
+  password:
+    - KAMAL_REGISTRY_PASSWORD
+
+
+# Use a different ssh user than root
+ssh:
+  user: root
+  #log_level: debug
+
+volumes:
+  - /var/run/docker.sock:/var/run/docker.sock
+
+traefik:
+  host_port: 3000
+
+healthcheck:
+  path: /
+  port: 3000
+  max_attempts: 50
+  interval: 20s
