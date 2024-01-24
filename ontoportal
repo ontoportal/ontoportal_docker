@@ -1,14 +1,15 @@
 #!/usr/bin/env bash
 
 run_api(){
+
 	clone_ongologies_linked_data(){
 	  repo_dir="ontologies_linked_data"
 
 	  if [ -d "$repo_dir" ]; then
 	      echo "[+] Directory $repo_dir already exists. Skipping cloning."
 	  else
-	    echo "[+] Cloning ontologies_linked_data repo..."
-	    git clone -q --depth=1 https://github.com/ontoportal-lirmm/ontologies_linked_data.git
+	    echo "[+] Cloning ontologies_linked_data repo... from $ontologies_linked_data_path"
+	    git clone -q --depth=1 "$ontologies_linked_data_path"
 	  fi
 
 	  echo "[+] Generating Solr configsets ..."
@@ -25,15 +26,15 @@ run_api(){
 	    echo "[-] Error: directory ontologies_linked_data does not exists"
 	  fi
 	}
-
-	clone_ongologies_linked_data
 	source .env
+	ontologies_linked_data_path="$ONTOLOGIES_LINKED_DATA_PATH"
 	api_url="$API_URL"
-	if [ -z "$api_url" ] ; then
-		echo "[-] Error: Missing required arguments. Please provide both --api-url or update them in your .env"
+	if [ -z "$api_url" ] || [ -z "$ontologies_linked_data_path" ]; then
+		echo "[-] Error: Missing required configurations. Please provide both API_URL and ONTOLOGIES_LINKED_DATA_PATH in your .env file"
 		exit 1
 	fi
-	bash_cmd=" (bundle check || bundle install || bundle update) && bundle exec rackup --host 0.0.0.0  --env=development --port 9393"
+	clone_ongologies_linked_data
+	bash_cmd="bundle exec rackup --host 0.0.0.0  --env=development --port 9393"
 	docker_run_cmd="docker compose -f docker-compose_api.yml run --rm -d --name api-service  --service-ports api bash -c \"$bash_cmd\""
 	echo "[+] Starting the API"
 	eval "$docker_run_cmd"
