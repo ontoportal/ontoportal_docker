@@ -1,130 +1,232 @@
 #!/usr/bin/env bash
 
 run_api(){
-	get_files_from_github(){
-		echo "[+] Getting compose file from ontologies_api"
-		curl -L https://raw.githubusercontent.com/ontoportal-lirmm/ontologies_api/development/docker-compose.yml -o docker-compose_api_development.yml
-		curl -L https://raw.githubusercontent.com/ontoportal-lirmm/ontologies_api/development/.env.sample -o .env_api
+	clone_ongologies_linked_data(){
+	  repo_dir="ontologies_linked_data"
+
+	  if [ -d "$repo_dir" ]; then
+	      echo "[+] Directory $repo_dir already exists. Skipping cloning."
+	  else
+	    echo "[+] Cloning ontologies_linked_data repo..."
+	    git clone -q --depth=1 https://github.com/ontoportal-lirmm/ontologies_linked_data.git
+	  fi
+
+	  echo "[+] Generating Solr configsets ..."
+	  if [ -d "$repo_dir" ]; then
+	    cd ontologies_linked_data || exit 1
+	    if ! ./test/solr/generate_ncbo_configsets.sh; then
+	      echo  "[-] Error: Failed to generate Solr configsets."
+	      exit 1
+	    else
+	      echo "[+] Success: Generating Solr configsets."
+	    fi
+	    cd ..
+	  else
+	    echo "[-] Error: directory ontologies_linked_data does not exists"
+	  fi
 	}
 
-	update_compose_file(){
-		echo "[+] Changing some lines"
-		file_path="./docker-compose_api_development.yml"
+	clone_ongologies_linked_data
+	source .env
+	api_url="$API_URL"
+	if [ -z "$api_url" ] ; then
+		echo "[-] Error: Missing required arguments. Please provide both --api-url or update them in your .env"
+		exit 1
+	fi
+	bash_cmd=" (bundle check || bundle install || bundle update) && bundle exec rackup --host 0.0.0.0  --env=development --port 9393"
+	docker_run_cmd="docker compose -f docker-compose_api.yml run --rm -d --name api-service  --service-ports api bash -c \"$bash_cmd\""
+	echo "[+] Starting the API"
+	eval "$docker_run_cmd"
+}
+
+run_ui(){
+	source .env
+	api_url="$API_URL"
+	api_key="$API_KEY"
+	if [ -z "$api_url" ] || [ -z "$api_key" ]; then
+		echo "[-] Error: Missing required arguments. Please provide both --api-url and --api-key or update them in your .env"
+		exit 1
+	fi
+	echo "[+] Starting the UI"
+	bash_cmd="cp /app/config/bioportal_config_env.rb.sample /app/config/bioportal_config_development.rb && cp /app/config/database.yml.sample /app/config/database.yml && (bundle check || bundle install) && bin/rails db:prepare && bundle exec rails s -b 0.0.0.0 -p 3000"
+	eval "docker compose -f docker-compose_ui.yml run --rm -d --name ui-service --service-ports rails bash -c \"$bash_cmd\""
+
+}
+
+run_default_mode(){
+
+	run_api_default_mode(){
+		echo "[+] Getting compose file for API"
+		curl  -sS -L https://raw.githubusercontent.com/ontoportal-lirmm/ontologies_api/development/docker-compose.yml -o docker-compose_api.yml
+		echo >> .env
+		curl  -sS -L https://raw.githubusercontent.com/ontoportal-lirmm/ontologies_api/development/.env.sample >> .env
+
+		sed -i 's/^API_URL=http:\/\/localhost:9393$/API_URL=http:\/\/api-service:9393/' .env
+
+		echo "[+] Changing lines in docker-compose_api.yml"
+		file_path="./docker-compose_api.yml"
 		sed -i 's#- \.:\/srv\/ontoportal\/ontologies_api#- app_api:/srv/ontoportal/ontologies_api#' "$file_path"
-		sed -i 's/\.env/.env_api/' "$file_path"
 		sed -i 's#./test/solr/configsets:/configsets:ro#./ontologies_linked_data/test/solr/configsets/:/configsets:ro#' "$file_path"
 		sed -i '/^volumes:/a \ \ app_api:' "$file_path"
-		#sed -i 's/image: agroportal\/ontologies_api:development/image: agroportal\/ontologies_api:stage/' "$file_path"
-	}
 
-	update_env_api(){
-		file_path=".env_api"
+		echo "[+] Adding some envirement variables for the API"
+		file_path=".env"
 		echo >> "$file_path"
 		echo "REDIS_GOO_CACHE_HOST=redis-ut" >> "$file_path"
 		echo "REDIS_HTTP_CACHE_HOST=redis-ut" >> "$file_path"
 		echo "REDIS_PERSISTENT_HOST=redis-ut" >> "$file_path"
-	}
-
-	run_the_api_service(){
+		
 		echo "[+] Running api script"
-		./run_api.sh dev --api-url http://api-service:9393
+		
+		run_api
+		if [ $? -ne 0 ]; then
+			echo "[-] Error in run_api function. Exiting..."
+			exit 1
+		fi
+
+		echo "[+] The API is running successfully."
 	}
 
-	get_files_from_github
-	update_compose_file
-	update_env_api
-	run_the_api_service
+	run_ui_default_mode(){
+		echo "[+] Getting compose file for UI"
+		curl -sS -L https://raw.githubusercontent.com/ontoportal-lirmm/bioportal_web_ui/development/docker-compose.yml -o docker-compose_ui.yml
+		echo >> .env
+		curl -sS -L https://raw.githubusercontent.com/ontoportal-lirmm/bioportal_web_ui/development/.env.sample >> .env
+		
+		sed -i 's/^API_URL=http:\/\/localhost:9393$/API_URL=http:\/\/api-service:9393/' .env
+		sed -i 's/^API_KEY=$/API_KEY=72c72cba-ad45-4785-b94e-483fa55cdddb/' .env
 
-}
-
-run_ui(){
-	get_files_from_github(){
-		echo "[+] Getting compose file from bioportal_web_ui"
-		curl -L https://raw.githubusercontent.com/ontoportal-lirmm/bioportal_web_ui/development/docker-compose.yml -o docker-compose_ui_development.yml
-		curl -L https://raw.githubusercontent.com/ontoportal-lirmm/bioportal_web_ui/development/.env.sample -o .env_ui
-	}
-
-	update_compose_file(){
-		echo "[+] Changing some lines"
-		file_path="./docker-compose_ui_development.yml"
-		sed -i 's/- ".env"/- .env_ui/' "$file_path"
+		echo "[+] Changing lines in docker-compose_ui.yml"
+		file_path="./docker-compose_ui.yml"
 		sed -i 's/- .:\/app/- app_web:\/app/' "$file_path"
 		sed -i 's/retries: 3/retries: 100/' "$file_path"
 		sed -i '/^volumes:/a \ \ app_web:' "$file_path"
-		#sed -i 's/image: agroportal\/ontoportal_web_ui:development/image: agroportal\/ontoportal_web_ui:stage/' "$file_path"
-	}
-
-	run_the_ui_script(){
+		
 		echo "[+] Running ui script"
-		./run_ui.sh dev --api-url http://api-service:9393 --api-key 72c72cba-ad45-4785-b94e-483fa55cdddb
+		run_ui
+		if [ $? -ne 0 ]; then
+			echo "[-] Error in run_ui function. Exiting..."
+			exit 1
+		fi
+
+		echo "[+] The UI is running successfully."
 	}
 
-	get_files_from_github
-	update_compose_file
-	run_the_ui_script
-
+	run_api_default_mode
+	run_ui_default_mode
 }
 
+run_personlized_mode(){
+	source .env
+	echo "[+] Getting compose file from: $ORGANIZATION_NAME$COMPOSE_API_FILE_PATH"
+	eval "curl -sS -L https://raw.githubusercontent.com/$ORGANIZATION_NAME$COMPOSE_API_FILE_PATH -o docker-compose_api.yml"
+	echo "[+] Changing some lines"
+	file_path="./docker-compose_api.yml"
+	sed -i 's#- \.:\/srv\/ontoportal\/ontologies_api#- app_api:/srv/ontoportal/ontologies_api#' "$file_path"
+	sed -i 's#./test/solr/configsets:/configsets:ro#./ontologies_linked_data/test/solr/configsets/:/configsets:ro#' "$file_path"
+	sed -i '/^volumes:/a \ \ app_api:' "$file_path"
+	echo "[+] Running api script"
+	run_api
+	
+	
+	echo "[+] Getting compose file from: $ORGANIZATION_NAME$COMPOSE_UI_FILE_PATH"
+	eval "curl -sS -L https://raw.githubusercontent.com/$ORGANIZATION_NAME$COMPOSE_UI_FILE_PATH -o docker-compose_ui.yml"
+	echo "[+] Changing some lines"
+	file_path="./docker-compose_ui.yml"
+	sed -i 's/- .:\/app/- app_web:\/app/' "$file_path"
+	sed -i 's/retries: 3/retries: 100/' "$file_path"
+	sed -i '/^volumes:/a \ \ app_web:' "$file_path"
+	echo "[+] Running ui script"
+	run_ui
+}
 
-stop_services(){
-	docker container stop api-service
+clean(){
+  echo "[+] Cleanning the server"
+  echo "[+] Removing ontologies_linked_data"
+  rm -rf ontologies_linked_data
+  echo "[+] Removing docker compose files"
+  rm -f docker-compose*
+  echo "[+] Removing All containers/volumes/networks"
+  docker container rm -f $(docker ps -aq) 2>/dev/null; docker volume rm $(docker volume ls -q) 2>/dev/null ; docker network prune -f
+}
+
+start_function() {
+	if [ -f ".env" ]; then
+		echo "[+] Starting in personlized mode"
+		run_personlized_mode
+	else
+		echo "[+] Starting the script in default mode"
+		rm -f .env
+		clean
+		run_default_mode
+	fi
+}
+
+stop_function() {
+  echo "[+] Stoping services"
+  docker container stop api-service
 	docker container stop ui-service
 }
 
+deploy(){
+	if [ -f ".env" ]; then
+		echo "[+] Checking for env variables"
+		source .env
+		# List of environment variables to check
+		variables=("IMAGE_NAME" "SERVER_IP" "DOCKER_REGISTRY_NAME" "KAMAL_REGISTRY_PASSWORD" "SSH_USER")
+		
+		for variable in "${variables[@]}"; do
+			if [ -z "${!variable}" ]; then
+				echo "[-] Error: $variable is not set."
+				exit
+			fi
+		done
 
-show_help(){
-	echo "HELP: ontoportal [clean/start/stop]"
+		echo "[+] Changing kamal deploy.yml file"
+		echo "" > config/deploy.yml
+		echo "service: ontoportal_docker" > config/deploy.yml
+		echo "image: ${IMAGE_NAME}" >> config/deploy.yml
+		echo -e "servers:\n  - ${SERVER_IP}" >> config/deploy.yml
+		echo "run_directory: /root/app" >> config/deploy.yml
+		echo -e "registry:\n  username:\n    - DOCKER_REGISTRY_NAME\n  password:\n    - KAMAL_REGISTRY_PASSWORD" >> config/deploy.yml
+		echo -e "ssh:\n  user: ${SSH_USER}" >> config/deploy.yml
+		echo "volumes: /var/run/docker.sock:/var/run/docker.sock" >> config/deploy.yml
+		echo -e "traefik:\n  host_port: 4000" >> config/deploy.yml
+		echo -e "healthcheck:\n  cmd: /bin/true" >> config/deploy.yml
+		echo "[+] Starting the deployment"
+		kamal setup -vv
+	else
+		echo "[-] Error: .env file does not exist"
+	fi
 }
 
-clean_containers(){
-	echo "[+] Cleaning the containers"
-	docker stop $(docker ps -aq) 2>/dev/null
-	docker container rm -f $(docker ps -aq) 2>/dev/null ; docker volume rm $(docker volume ls -q) ; docker buildx prune -f ; docker network prune -f
-	rm .env*
-	rm docker-compose*
-	rm ontologies_linked_data -rf
-	echo "[+] Finishing cleaning the containers"
+show_help() {
+    echo "Usage: $0 <command>"
+    echo
+    echo "Commands:"
+    echo "  start   : Start the ontologies API and UI (Default Mode / Personilized Mode)"
+    echo "  deploy  : Deploy the application using Kamal to the server"
+	echo "  stop    : Stop the API and UI services"
+    echo "  clean   : Clean up the server (remove ontologies_linked_data, docker-compose files, and remove all containers)"
+    echo "  help    : Show this help message"
+	echo
+    echo "Additional notes:"
+    echo "- You can provide your own .env file to customize parameters:"
+    echo "  Just put the .env file in this directory and run $0 start"
 }
-
-
-show_running_containers(){
-	docker container ls -a
-}
-
-show_logs_api(){
-	docker logs -f api-service
-}
-
-
-show_logs_ui(){
-	docker logs -f ui-service
-}
-
 
 case "$1" in
   "start")
-		#clean_containers
-    run_api
-    run_ui
-    ;;
-  "logs")
-		case "$2" in
-			"api")
-				show_logs_api
-			;;
-			"ui")
-				show_logs_ui
-			;;
-			*)
-				show_running_containers
-				;;
-		esac
-    ;;
+  	start_function
+   ;;
+   "deploy")
+  	deploy
+   ;;
   "stop")
-    stop_services
+    stop_function
     ;;
   "clean")
-    clean_containers
+    clean
     ;;
   "help")
     show_help
@@ -134,4 +236,3 @@ case "$1" in
     exit 1
     ;;
 esac
-
