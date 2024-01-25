@@ -35,7 +35,7 @@ run_api(){
 	fi
 	clone_ongologies_linked_data
 	bash_cmd="bundle exec rackup --host 0.0.0.0  --env=development --port 9393"
-	docker_run_cmd="docker compose -f docker-compose_api.yml run --rm -d --name api-service  --service-ports api bash -c \"$bash_cmd\""
+	docker_run_cmd="docker compose -f docker-compose_api.yml -p ontoportal_docker run --rm -d --name api-service  --service-ports api bash -c \"$bash_cmd\""
 	echo "[+] Starting the API"
 	eval "$docker_run_cmd"
 }
@@ -50,7 +50,7 @@ run_ui(){
 	fi
 	echo "[+] Starting the UI"
 	bash_cmd="cp /app/config/bioportal_config_env.rb.sample /app/config/bioportal_config_development.rb && cp /app/config/database.yml.sample /app/config/database.yml && (bundle check || bundle install) && bin/rails db:prepare && bundle exec rails s -b 0.0.0.0 -p 3000"
-	eval "docker compose -f docker-compose_ui.yml run --rm -d --name ui-service --service-ports rails bash -c \"$bash_cmd\""
+	eval "docker compose -f docker-compose_ui.yml -p ontoportal_docker run --rm -d --name ui-service --service-ports rails bash -c \"$bash_cmd\""
 
 }
 
@@ -67,7 +67,9 @@ run_default_mode(){
 		echo "[+] Changing lines in docker-compose_api.yml"
 		file_path="./docker-compose_api.yml"
 		sed -i 's#- \.:\/srv\/ontoportal\/ontologies_api#- app_api:/srv/ontoportal/ontologies_api#' "$file_path"
+		sed -i 's#- bundle:/srv/ontoportal/bundle#- bundle_api:/srv/ontoportal/bundle#' "$file_path"
 		sed -i 's#./test/solr/configsets:/configsets:ro#./ontologies_linked_data/test/solr/configsets/:/configsets:ro#' "$file_path"
+		sed -i '/volumes:/,/^$/ s/bundle:/bundle_api:/' "$file_path"
 		sed -i '/^volumes:/a \ \ app_api:' "$file_path"
 
 		echo "[+] Adding some envirement variables for the API"
@@ -124,10 +126,17 @@ run_personlized_mode(){
 	echo "[+] Changing some lines"
 	file_path="./docker-compose_api.yml"
 	sed -i 's#- \.:\/srv\/ontoportal\/ontologies_api#- app_api:/srv/ontoportal/ontologies_api#' "$file_path"
+	sed -i 's#- bundle:/srv/ontoportal/bundle#- bundle_api:/srv/ontoportal/bundle#' "$file_path"
 	sed -i 's#./test/solr/configsets:/configsets:ro#./ontologies_linked_data/test/solr/configsets/:/configsets:ro#' "$file_path"
+	sed -i '/volumes:/,/^$/ s/bundle:/bundle_api:/' "$file_path"
 	sed -i '/^volumes:/a \ \ app_api:' "$file_path"
 	echo "[+] Running api script"
 	run_api
+	if [ $? -ne 0 ]; then
+		echo "[-] Error in run_api function. Exiting..."
+		exit 1
+	fi
+	echo "[+] The API is running successfully."
 	
 	
 	echo "[+] Getting compose file from: $ORGANIZATION_NAME$COMPOSE_UI_FILE_PATH"
@@ -139,6 +148,11 @@ run_personlized_mode(){
 	sed -i '/^volumes:/a \ \ app_web:' "$file_path"
 	echo "[+] Running ui script"
 	run_ui
+	if [ $? -ne 0 ]; then
+		echo "[-] Error in run_ui function. Exiting..."
+		exit 1
+	fi
+	echo "[+] The UI is running successfully."
 }
 
 clean(){
@@ -147,8 +161,8 @@ clean(){
   rm -rf ontologies_linked_data
   echo "[+] Removing docker compose files"
   rm -f docker-compose*
-  echo "[+] Removing All containers/volumes/networks"
-  docker container rm -f $(docker ps -aq) 2>/dev/null; docker volume rm $(docker volume ls -q) 2>/dev/null ; docker network prune -f
+  echo "[+] Removing All containers"
+  docker ps -a --format "{{.Names}}" | grep "ontoportal_docker" | awk '{print "docker rm -f " $1}' | sh
 }
 
 start_function() {
@@ -166,7 +180,7 @@ start_function() {
 stop_function() {
   echo "[+] Stoping services"
   docker container stop api-service
-	docker container stop ui-service
+  docker container stop ui-service
 }
 
 deploy(){
