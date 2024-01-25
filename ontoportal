@@ -59,10 +59,10 @@ run_default_mode(){
 	run_api_default_mode(){
 		echo "[+] Getting compose file for API"
 		curl  -sS -L https://raw.githubusercontent.com/ontoportal-lirmm/ontologies_api/development/docker-compose.yml -o docker-compose_api.yml
-		echo >> .env
-		curl  -sS -L https://raw.githubusercontent.com/ontoportal-lirmm/ontologies_api/development/.env.sample >> .env
+		#echo >> .env
+		#curl  -sS -L https://raw.githubusercontent.com/ontoportal-lirmm/ontologies_api/development/.env.sample >> .env
 
-		sed -i 's/^API_URL=http:\/\/localhost:9393$/API_URL=http:\/\/api-service:9393/' .env
+		#sed -i 's/^API_URL=http:\/\/localhost:9393$/API_URL=http:\/\/api-service:9393/' .env
 
 		echo "[+] Changing lines in docker-compose_api.yml"
 		file_path="./docker-compose_api.yml"
@@ -72,12 +72,12 @@ run_default_mode(){
 		sed -i '/volumes:/,/^$/ s/bundle:/bundle_api:/' "$file_path"
 		sed -i '/^volumes:/a \ \ app_api:' "$file_path"
 
-		echo "[+] Adding some envirement variables for the API"
-		file_path=".env"
-		echo >> "$file_path"
-		echo "REDIS_GOO_CACHE_HOST=redis-ut" >> "$file_path"
-		echo "REDIS_HTTP_CACHE_HOST=redis-ut" >> "$file_path"
-		echo "REDIS_PERSISTENT_HOST=redis-ut" >> "$file_path"
+		#echo "[+] Adding some envirement variables for the API"
+		#file_path=".env"
+		#echo >> "$file_path"
+		#echo "REDIS_GOO_CACHE_HOST=redis-ut" >> "$file_path"
+		#echo "REDIS_HTTP_CACHE_HOST=redis-ut" >> "$file_path"
+		#echo "REDIS_PERSISTENT_HOST=redis-ut" >> "$file_path"
 		
 		echo "[+] Running api script"
 		
@@ -93,11 +93,11 @@ run_default_mode(){
 	run_ui_default_mode(){
 		echo "[+] Getting compose file for UI"
 		curl -sS -L https://raw.githubusercontent.com/ontoportal-lirmm/bioportal_web_ui/development/docker-compose.yml -o docker-compose_ui.yml
-		echo >> .env
-		curl -sS -L https://raw.githubusercontent.com/ontoportal-lirmm/bioportal_web_ui/development/.env.sample >> .env
+		#echo >> .env
+		#curl -sS -L https://raw.githubusercontent.com/ontoportal-lirmm/bioportal_web_ui/development/.env.sample >> .env
 		
-		sed -i 's/^API_URL=http:\/\/localhost:9393$/API_URL=http:\/\/api-service:9393/' .env
-		sed -i 's/^API_KEY=$/API_KEY=72c72cba-ad45-4785-b94e-483fa55cdddb/' .env
+		#sed -i 's/^API_URL=http:\/\/localhost:9393$/API_URL=http:\/\/api-service:9393/' .env
+		#sed -i 's/^API_KEY=$/API_KEY=72c72cba-ad45-4785-b94e-483fa55cdddb/' .env
 
 		echo "[+] Changing lines in docker-compose_ui.yml"
 		file_path="./docker-compose_ui.yml"
@@ -114,7 +114,8 @@ run_default_mode(){
 
 		echo "[+] The UI is running successfully."
 	}
-
+	
+	cp .env.sample .env
 	run_api_default_mode
 	run_ui_default_mode
 }
