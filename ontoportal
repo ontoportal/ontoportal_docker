@@ -3,17 +3,16 @@
 run_api(){
 
 	clone_ongologies_linked_data(){
-	  repo_dir="ontologies_linked_data"
 
-	  if [ -d "$repo_dir" ]; then
+	  if [ -d "ontologies_linked_data" ]; then
 	      echo "[+] Directory $repo_dir already exists. Skipping cloning."
 	  else
-	    echo "[+] Cloning ontologies_linked_data repo... from $ontologies_linked_data_path"
-	    git clone -q --depth=1 "$ontologies_linked_data_path"
+	    echo "[+] Cloning ontologies_linked_data repo... from $ONTOLOGIES_LINKED_DATA_LINK"
+	    git clone -q --depth=1 "$ONTOLOGIES_LINKED_DATA_LINK"
 	  fi
 
 	  echo "[+] Generating Solr configsets ..."
-	  if [ -d "$repo_dir" ]; then
+	  if [ -d "ontologies_linked_data" ]; then
 	    cd ontologies_linked_data || exit 1
 	    if ! ./test/solr/generate_ncbo_configsets.sh; then
 	      echo  "[-] Error: Failed to generate Solr configsets."
@@ -27,10 +26,10 @@ run_api(){
 	  fi
 	}
 	source .env
-	ontologies_linked_data_path="$ONTOLOGIES_LINKED_DATA_PATH"
+	ontologies_linked_data_link="$ONTOLOGIES_LINKED_DATA_LINK"
 	api_url="$API_URL"
-	if [ -z "$api_url" ] || [ -z "$ontologies_linked_data_path" ]; then
-		echo "[-] Error: Missing required configurations. Please provide both API_URL and ONTOLOGIES_LINKED_DATA_PATH in your .env file"
+	if [ -z "$api_url" ] || [ -z "$ontologies_linked_data_link" ]; then
+		echo "[-] Error: Missing required configurations. Please provide both API_URL and ONTOLOGIES_LINKED_DATA_LINK in your .env file"
 		exit 1
 	fi
 	clone_ongologies_linked_data
@@ -54,51 +53,33 @@ run_ui(){
 
 }
 
-run_default_mode(){
+start() {
 
-	run_api_default_mode(){
+	start_api(){
 		echo "[+] Getting compose file for API"
-		curl  -sS -L https://raw.githubusercontent.com/ontoportal-lirmm/ontologies_api/development/docker-compose.yml -o docker-compose_api.yml
-		#echo >> .env
-		#curl  -sS -L https://raw.githubusercontent.com/ontoportal-lirmm/ontologies_api/development/.env.sample >> .env
-
-		#sed -i 's/^API_URL=http:\/\/localhost:9393$/API_URL=http:\/\/api-service:9393/' .env
-
+		echo "[+] Getting compose file from: $ORGANIZATION_NAME$COMPOSE_API_FILE_PATH"
+		eval "curl -sS -L https://raw.githubusercontent.com/$ORGANIZATION_NAME$COMPOSE_API_FILE_PATH -o docker-compose_api.yml"
 		echo "[+] Changing lines in docker-compose_api.yml"
 		file_path="./docker-compose_api.yml"
-		sed -i 's#- \.:\/srv\/ontoportal\/ontologies_api#- app_api:/srv/ontoportal/ontologies_api#' "$file_path"
+		sed -i 's#- .:/srv/ontoportal/ontologies_api#- app_api:/srv/ontoportal/ontologies_api#' "$file_path"
 		sed -i 's#- bundle:/srv/ontoportal/bundle#- bundle_api:/srv/ontoportal/bundle#' "$file_path"
 		sed -i 's#./test/solr/configsets:/configsets:ro#./ontologies_linked_data/test/solr/configsets/:/configsets:ro#' "$file_path"
 		sed -i '/volumes:/,/^$/ s/bundle:/bundle_api:/' "$file_path"
-		sed -i '/^volumes:/a \ \ app_api:' "$file_path"
-
-		#echo "[+] Adding some envirement variables for the API"
-		#file_path=".env"
-		#echo >> "$file_path"
-		#echo "REDIS_GOO_CACHE_HOST=redis-ut" >> "$file_path"
-		#echo "REDIS_HTTP_CACHE_HOST=redis-ut" >> "$file_path"
-		#echo "REDIS_PERSISTENT_HOST=redis-ut" >> "$file_path"
+		sed -i '/^volumes:/a \ \ app_api:' "$file_path"		
 		
 		echo "[+] Running api script"
-		
 		run_api
 		if [ $? -ne 0 ]; then
 			echo "[-] Error in run_api function. Exiting..."
 			exit 1
 		fi
-
 		echo "[+] The API is running successfully."
 	}
 
-	run_ui_default_mode(){
-		echo "[+] Getting compose file for UI"
-		curl -sS -L https://raw.githubusercontent.com/ontoportal-lirmm/bioportal_web_ui/development/docker-compose.yml -o docker-compose_ui.yml
-		#echo >> .env
-		#curl -sS -L https://raw.githubusercontent.com/ontoportal-lirmm/bioportal_web_ui/development/.env.sample >> .env
+	start_ui(){
+		echo "[+] Getting compose file from: $ORGANIZATION_NAME$COMPOSE_UI_FILE_PATH"
+		eval "curl -sS -L https://raw.githubusercontent.com/$ORGANIZATION_NAME$COMPOSE_UI_FILE_PATH -o docker-compose_ui.yml"
 		
-		#sed -i 's/^API_URL=http:\/\/localhost:9393$/API_URL=http:\/\/api-service:9393/' .env
-		#sed -i 's/^API_KEY=$/API_KEY=72c72cba-ad45-4785-b94e-483fa55cdddb/' .env
-
 		echo "[+] Changing lines in docker-compose_ui.yml"
 		file_path="./docker-compose_ui.yml"
 		sed -i 's/- .:\/app/- app_web:\/app/' "$file_path"
@@ -114,106 +95,88 @@ run_default_mode(){
 
 		echo "[+] The UI is running successfully."
 	}
-	
-	cp .env.sample .env
-	run_api_default_mode
-	run_ui_default_mode
-}
 
-run_personlized_mode(){
-	source .env
-	echo "[+] Getting compose file from: $ORGANIZATION_NAME$COMPOSE_API_FILE_PATH"
-	eval "curl -sS -L https://raw.githubusercontent.com/$ORGANIZATION_NAME$COMPOSE_API_FILE_PATH -o docker-compose_api.yml"
-	echo "[+] Changing some lines"
-	file_path="./docker-compose_api.yml"
-	sed -i 's#- \.:\/srv\/ontoportal\/ontologies_api#- app_api:/srv/ontoportal/ontologies_api#' "$file_path"
-	sed -i 's#- bundle:/srv/ontoportal/bundle#- bundle_api:/srv/ontoportal/bundle#' "$file_path"
-	sed -i 's#./test/solr/configsets:/configsets:ro#./ontologies_linked_data/test/solr/configsets/:/configsets:ro#' "$file_path"
-	sed -i '/volumes:/,/^$/ s/bundle:/bundle_api:/' "$file_path"
-	sed -i '/^volumes:/a \ \ app_api:' "$file_path"
-	echo "[+] Running api script"
-	run_api
-	if [ $? -ne 0 ]; then
-		echo "[-] Error in run_api function. Exiting..."
-		exit 1
-	fi
-	echo "[+] The API is running successfully."
-	
-	
-	echo "[+] Getting compose file from: $ORGANIZATION_NAME$COMPOSE_UI_FILE_PATH"
-	eval "curl -sS -L https://raw.githubusercontent.com/$ORGANIZATION_NAME$COMPOSE_UI_FILE_PATH -o docker-compose_ui.yml"
-	echo "[+] Changing some lines"
-	file_path="./docker-compose_ui.yml"
-	sed -i 's/- .:\/app/- app_web:\/app/' "$file_path"
-	sed -i 's/retries: 3/retries: 100/' "$file_path"
-	sed -i '/^volumes:/a \ \ app_web:' "$file_path"
-	echo "[+] Running ui script"
-	run_ui
-	if [ $? -ne 0 ]; then
-		echo "[-] Error in run_ui function. Exiting..."
-		exit 1
-	fi
-	echo "[+] The UI is running successfully."
-}
-
-clean(){
-  echo "[+] Cleanning the server"
-  echo "[+] Removing ontologies_linked_data"
-  rm -rf ontologies_linked_data
-  echo "[+] Removing docker compose files"
-  rm -f docker-compose*
-  echo "[+] Removing All containers"
-  docker ps -a --format "{{.Names}}" | grep "ontoportal_docker" | awk '{print "docker rm -f " $1}' | sh
-}
-
-start_function() {
+	clean
 	if [ -f ".env" ]; then
-		echo "[+] Starting in personlized mode"
-		run_personlized_mode
+		echo "[+] Env file exist"
 	else
-		echo "[+] Starting the script in default mode"
-		rm -f .env
-		clean
-		run_default_mode
+		echo "[+] Env file does not exist"
+		cp .env.sample .env
 	fi
+
+	if [ -z "$1" ]; then
+		sed -i "s/^SERVICE=.*/SERVICE=ontoportal/" .env
+	else
+		sed -i "s/^SERVICE=.*/SERVICE=$1/" .env
+	fi
+
+	source .env
+	if [ "$SERVICE" == "api" ]; then
+		start_api
+	elif [ "$SERVICE" == "ui" ]; then
+		start_ui
+	else	
+		start_api
+		start_ui
+	fi
+
 }
 
-stop_function() {
+stop() {
   echo "[+] Stoping services"
   docker container stop api-service
   docker container stop ui-service
+  docker ps -a --format "{{.Names}}" | grep "ontoportal_docker" | awk '{print "docker stop " $1}' | sh
 }
 
 deploy(){
 	if [ -f ".env" ]; then
-		echo "[+] Checking for env variables"
-		source .env
-		# List of environment variables to check
-		variables=("IMAGE_NAME" "SERVER_IP" "DOCKER_REGISTRY_NAME" "KAMAL_REGISTRY_PASSWORD" "SSH_USER")
-		
-		for variable in "${variables[@]}"; do
-			if [ -z "${!variable}" ]; then
-				echo "[-] Error: $variable is not set."
-				exit
-			fi
-		done
-
-		echo "[+] Changing kamal deploy.yml file"
-		echo "" > config/deploy.yml
-		echo "service: ontoportal_docker" > config/deploy.yml
-		echo "image: ${IMAGE_NAME}" >> config/deploy.yml
-		echo -e "servers:\n  - ${SERVER_IP}" >> config/deploy.yml
-		echo "run_directory: /root/app" >> config/deploy.yml
-		echo -e "registry:\n  username:\n    - DOCKER_REGISTRY_NAME\n  password:\n    - KAMAL_REGISTRY_PASSWORD" >> config/deploy.yml
-		echo -e "ssh:\n  user: ${SSH_USER}" >> config/deploy.yml
-		echo "volumes: /var/run/docker.sock:/var/run/docker.sock" >> config/deploy.yml
-		echo -e "traefik:\n  host_port: 4000" >> config/deploy.yml
-		echo -e "healthcheck:\n  cmd: /bin/true" >> config/deploy.yml
-		echo "[+] Starting the deployment"
-		kamal setup -vv
+		echo "[+] Env file exist"
 	else
-		echo "[-] Error: .env file does not exist"
+		echo "[+] Env file does not exist"
+		cp .env.sample .env
 	fi
+
+	if [ -z "$1" ]; then
+		sed -i "s/^SERVICE=.*/SERVICE=ontoportal/" .env
+	else
+		sed -i "s/^SERVICE=.*/SERVICE=$1/" .env
+	fi
+
+	echo "[+] Checking for env variables"
+	source .env
+	variables=("IMAGE_NAME" "SERVER_IP" "DOCKER_REGISTRY_NAME" "KAMAL_REGISTRY_PASSWORD" "SSH_USER")
+
+	for variable in "${variables[@]}"; do
+		if [ -z "${!variable}" ]; then
+			echo "[-] Error: $variable is not set."
+			exit
+		fi
+	done
+
+	echo "[+] Changing kamal deploy.yml file"
+	echo "" > config/deploy.yml
+	echo "service: ontoportal_docker" > config/deploy.yml
+	echo "image: ${IMAGE_NAME}" >> config/deploy.yml
+	echo -e "servers:\n  - ${SERVER_IP}" >> config/deploy.yml
+	echo "run_directory: /root/app" >> config/deploy.yml
+	echo -e "registry:\n  username:\n    - DOCKER_REGISTRY_NAME\n  password:\n    - KAMAL_REGISTRY_PASSWORD" >> config/deploy.yml
+	echo -e "ssh:\n  user: ${SSH_USER}" >> config/deploy.yml
+	echo "volumes: /var/run/docker.sock:/var/run/docker.sock" >> config/deploy.yml
+	echo -e "traefik:\n  host_port: 4000" >> config/deploy.yml
+	echo -e "healthcheck:\n  cmd: /bin/true" >> config/deploy.yml
+	echo "[+] Starting the deployment"
+	kamal setup -vv
+
+}
+
+clean(){
+  echo "[+] Cleanning the server"
+  rm -rf ontologies_linked_data
+  rm -f docker-compose*
+  docker container rm -f api-service ui-service 2>/dev/null
+  docker ps -a --format "{{.Names}}" | grep "ontoportal_docker" | awk '{print "docker rm -f " $1}' | sh
+  docker volume rm ontoportal_docker_rails_cache > /dev/null 2>&1
 }
 
 show_help() {
@@ -233,13 +196,13 @@ show_help() {
 
 case "$1" in
   "start")
-  	start_function
+  	start "$2"
    ;;
    "deploy")
-  	deploy
+  	deploy "$2"
    ;;
   "stop")
-    stop_function
+    stop
     ;;
   "clean")
     clean
