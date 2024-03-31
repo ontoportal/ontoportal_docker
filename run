@@ -1,0 +1,146 @@
+#!/usr/bin/env bash
+
+# Default values
+API_URL="https://data.bioontology.org"
+STARTER_ONTOLOGY="STY"
+IMAGE_REPOSITORY="bioportal"
+IMAGE_TAG="latest"
+PROVISION=true  # Set the default value to true
+
+# Function to display help message
+display_help() {
+    echo "Usage: $0 [-k API_KEY] [-u API_URL] [-r IMAGE_REPOSITORY] [-t IMAGE_TAG] [-s STARTER_ONTOLOGY] [--no-provision]"
+    exit 0
+}
+
+# Parse command line options
+while getopts ":k:u:r:t:s:-:h" opt; do
+    case $opt in
+        k) API_KEY="$OPTARG";;
+        u) API_URL="$OPTARG";;
+        r) IMAGE_REPOSITORY="$OPTARG";;
+        t) IMAGE_TAG="$OPTARG";;
+        s) STARTER_ONTOLOGY="$OPTARG";;
+        h) display_help;;
+        -) case "${OPTARG}" in
+               no-provision) PROVISION=false;;
+               help) display_help;;
+           esac;;
+        \?) echo "Invalid option: -$OPTARG" >&2; exit 1;;
+        :) echo "Option -$OPTARG requires an argument." >&2; exit 1;;
+    esac
+done
+
+# Check if required arguments are provided
+if [ -z "$API_KEY" ]; then
+    echo "Error: Missing required argument. Please provide API_KEY."
+    echo "See help using -h, --help"
+    exit 1
+fi
+
+echo "Running the Ontoportal API and CRON Setup..."
+
+
+# Step 1: Clone ontologies_linked_data repo
+echo "Cloning ontologies_linked_data repo..."
+git clone --depth=1 https://github.com/ontoportal-lirmm/ontologies_linked_data.git
+
+# Step 2: Generate configsets
+echo "Generating Solr configsets..."
+cd ontologies_linked_data || exit 1
+if ! ./test/solr/generate_ncbo_configsets.sh; then
+  echo "Error: Failed to generate Solr configsets."
+  exit 1
+fi
+
+echo "Navigating to ontoportal_docker directory..."
+cd .. || exit 1
+
+# Step 4: Install
+echo "Installing  (Docker in Production) dependencies..."
+if ! bundle install; then
+    echo "Error: Failed to install  dependencies."
+    exit 1
+fi
+
+ # Copy .env.sample to .env
+if ! cp .env.sample .env; then
+    echo "Error: Failed to copy .env.sample to .env."
+    exit 1
+fi
+
+env_file_path="./.env"
+
+# Read the content of .env file
+env_content=$(<"$env_file_path")
+
+# Export bioportal APIKEY, update OP_APIKEY and OP_API_URL in .env file
+echo "Exporting bioportal APIKEY..."
+env_content="${env_content//OP_APIKEY=<YOUR ONTOPORTAL API KEY>/OP_APIKEY=$API_KEY}"
+
+# Update OP_API_URL in .env file with provided API_URL argument
+echo "Updating OP_API_URL in .env file..."
+env_content="${env_content//OP_API_URL=\"https:\/\/data.bioontology.org\"/OP_API_URL=$API_URL}"
+
+# Update STARTER_ONTOLOGY in .env file with provided STARTER_ONTOLOGY argument
+echo "Updating STARTER_ONTOLOGY in .env file..."
+env_content="${env_content//STARTER_ONTOLOGY=\"STY\"/STARTER_ONTOLOGY=$STARTER_ONTOLOGY}"
+
+# Update IMAGE_REPOSITORY in .env file with provided IMAGE_REPOSITORY argument
+echo "Updating IMAGE_REPOSITORY in .env file..."
+env_content="${env_content//IMAGE_REPOSITORY=bioportal/IMAGE_REPOSITORY=$IMAGE_REPOSITORY}"
+
+# Update IMAGE_TAG in .env file with provided IMAGE_TAG argument
+echo "Updating IMAGE_TAG in .env file..."
+env_content="${env_content//IMAGE_TAG=latest/IMAGE_TAG=$IMAGE_TAG}"
+
+# Write the modified content back to the .env file
+echo "$env_content" > "$env_file_path"
+
+# Step 8: Run provisioning
+if [ "$PROVISION" = true ]; then
+    echo "Running the Ontoportal API and CRON Setup..."
+
+    # ... (rest of the script remains unchanged)
+
+    # Step 8: Run provisioning
+    echo "Running provisioning ..."
+    commands=(
+        'docker compose down --volumes > /dev/null 2>&1'
+        'docker compose run --rm  4store bash -c "4s-backend-setup ontoportal_kb" > /dev/null 2>&1 '
+        'docker compose run --rm  ncbo_cron bundle exec rake user:create[admin,admin@nodomain.org] > /dev/null 2>&1'
+        "docker compose run --rm  ncbo_cron bundle exec 'bin/ncbo_ontology_import --admin-user admin --ontologies $STARTER_ONTOLOGY --from-apikey $API_KEY --from $API_URL' > /dev/null 2>&1 "
+        "docker compose run --rm  ncbo_cron bundle exec 'bin/ncbo_ontology_pull -o $STARTER_ONTOLOGY' > /dev/null 2>&1 "
+        "docker compose run --rm  ncbo_cron bundle exec 'bin/ncbo_ontology_process -o ${STARTER_ONTOLOGY}' > /dev/null 2>&1"
+    )
+
+    for cmd in "${commands[@]}"; do
+        echo "Run: $cmd"
+        if ! eval "$cmd"; then
+          echo "Error: Failed to run provisioning .  $cmd"
+          exit 1
+        fi
+    done
+
+    echo "Setup completed successfully!"
+fi
+
+
+
+echo "Running api ..."
+docker compose run --service-ports --rm  -d api
+
+ # Wait for API to be ready (adjust the sleep time accordingly)
+timeout=30
+elapsed=0
+until [ $elapsed -ge $timeout ] || curl -sSf http://localhost:9393 > /dev/null 2>&1; do
+    echo "Waiting for the server to be up..."
+    sleep 1
+    elapsed=$((elapsed + 1))
+done
+if [ $elapsed -ge $timeout ]; then
+    echo "Timed out waiting for the server to be up."
+    exit 1
+fi
+
+echo "Server is up and running!"

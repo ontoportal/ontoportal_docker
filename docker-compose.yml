@@ -1,5 +1,3 @@
-name: ontoportal
-
 x-app: &api
   stdin_open: true
   tty: true
@@ -25,7 +23,7 @@ x-app: &api
 services:
   api:
     <<: *api
-    image: bioportal/ontologies_api
+    image: ${IMAGE_REPOSITORY}/ontologies_api:${IMAGE_TAG}
     command: "bundle exec rackup -o 0.0.0.0 --port 9393"
     env_file:
       .env
@@ -86,7 +84,7 @@ services:
     image: solr:9.1
     volumes:
       - solr-term_data:/var/solr
-      - ../ontologies_linked_data/test/solr/configsets/:/configsets:ro
+      - ./ontologies_linked_data/test/solr/configsets/:/configsets:ro
     command: solr-precreate term_search_core1 /configsets/term_search
     healthcheck:
       test: ["CMD-SHELL", "curl -sf http://localhost:8983/solr/term_search_core1/admin/ping?wt=json | grep -iq '\"status\":\"OK\"}' || exit 1"]
@@ -99,7 +97,7 @@ services:
     image: solr:9.1
     volumes:
       - solr-prop_data:/var/solr
-      - ../ontologies_linked_data/test/solr/configsets/:/configsets:ro
+      - ./ontologies_linked_data/test/solr/configsets/:/configsets:ro
     command: solr-precreate prop_search_core1 /configsets/property_search
     healthcheck:
       test: ["CMD-SHELL", "curl -sf http://localhost:8983/solr/prop_search_core1/admin/ping?wt=json | grep -iq '\"status\":\"OK\"}' || exit 1"]
