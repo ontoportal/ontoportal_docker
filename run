@@ -45,17 +45,6 @@ echo "Running the Ontoportal API and CRON Setup..."
 echo "Cloning ontologies_linked_data repo..."
 git clone --depth=1 https://github.com/ontoportal-lirmm/ontologies_linked_data.git
 
-# Step 2: Generate configsets
-echo "Generating Solr configsets..."
-cd ontologies_linked_data || exit 1
-if ! ./test/solr/generate_ncbo_configsets.sh; then
-  echo "Error: Failed to generate Solr configsets."
-  exit 1
-fi
-
-echo "Navigating to ontoportal_docker directory..."
-cd .. || exit 1
-
 # Step 4: Install
 echo "Installing  (Docker in Production) dependencies..."
 if ! bundle install; then
@@ -128,10 +117,10 @@ fi
 
 
 echo "Running api ..."
-docker compose run --service-ports --rm  -d api
+docker compose run --service-ports -d api
 
  # Wait for API to be ready (adjust the sleep time accordingly)
-timeout=30
+timeout=300
 elapsed=0
 until [ $elapsed -ge $timeout ] || curl -sSf http://localhost:9393 > /dev/null 2>&1; do
     echo "Waiting for the server to be up..."

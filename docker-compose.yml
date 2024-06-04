@@ -5,9 +5,9 @@ x-app: &api
     .env
   depends_on: &depends_on
     solr-term:
-      condition: service_healthy
+      condition: service_started
     solr-prop:
-      condition: service_healthy
+      condition: service_started
     redis-persistent:
       condition: service_healthy
     redis-goo-cache:
@@ -82,29 +82,11 @@ services:
 
   solr-term:
     image: solr:9.1
-    volumes:
-      - solr-term_data:/var/solr
-      - ./ontologies_linked_data/test/solr/configsets/:/configsets:ro
-    command: solr-precreate term_search_core1 /configsets/term_search
-    healthcheck:
-      test: ["CMD-SHELL", "curl -sf http://localhost:8983/solr/term_search_core1/admin/ping?wt=json | grep -iq '\"status\":\"OK\"}' || exit 1"]
-      start_period: 3s
-      interval: 10s
-      timeout: 5s
-      retries: 5
+    command: bin/solr start -cloud -f
 
   solr-prop:
     image: solr:9.1
-    volumes:
-      - solr-prop_data:/var/solr
-      - ./ontologies_linked_data/test/solr/configsets/:/configsets:ro
-    command: solr-precreate prop_search_core1 /configsets/property_search
-    healthcheck:
-      test: ["CMD-SHELL", "curl -sf http://localhost:8983/solr/prop_search_core1/admin/ping?wt=json | grep -iq '\"status\":\"OK\"}' || exit 1"]
-      start_period: 3s
-      interval: 10s
-      timeout: 5s
-      retries: 5
+    command: bin/solr start -cloud -f
 
   mgrep:
     image: ontoportal/mgrep:0.0.2
