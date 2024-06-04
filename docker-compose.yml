@@ -4,19 +4,12 @@ x-app: &api
   env_file:
     .env
   depends_on: &depends_on
-    solr-term:
+    solr:
       condition: service_started
-    solr-prop:
-      condition: service_started
-    redis-persistent:
-      condition: service_healthy
-    redis-goo-cache:
-      condition: service_healthy
-    redis-http-cache:
+    redis:
       condition: service_healthy
     mgrep:
       condition: service_started
-      # condition: service_healthy # FIXME: mgrep needs valid dictionary file to start which is not generated until ontology is processed
     4store:
       condition: service_started
 
@@ -36,7 +29,7 @@ services:
 
   ncbo_cron:
     <<: *api
-    image: bioportal/ncbo_cron
+    image: ${IMAGE_REPOSITORY}/ncbo_cron:${IMAGE_TAG}
     command: "bundle exec bin/ncbo_cron"
     volumes:
       - history:/usr/local/hist
@@ -45,28 +38,11 @@ services:
       - mgrep:/srv/ontoportal/data/mgrep
       - logs:/srv/ontoportal/ncbo_cron/logs
 
-  redis-persistent:
-    image: redis
-    volumes:
-      - redis_data:/data
-    healthcheck:
-      test: redis-cli ping
-      interval: 10s
-      timeout: 3s
-      retries: 10
-
-  redis-goo-cache:
-    image: redis
-    command: ["redis-server", "--save", "", "--maxmemory-policy", "allkeys-lru", "--maxmemory", "128000000"]
-    healthcheck:
-      test: redis-cli ping
-      interval: 10s
-      timeout: 3s
-      retries: 10
-
-  redis-http-cache:
+  redis:
     image: redis
     command: ["redis-server", "--save", "", "--maxmemory-policy", "volatile-ttl", "--maxmemory", "128000000"]
+    volumes:
+      - redis_data:/data
     healthcheck:
       test: redis-cli ping
       interval: 10s
@@ -80,11 +56,7 @@ services:
      - 4store_data:/var/lib/4store
     command: bash -c "4s-backend ontoportal_kb && 4s-httpd -D -s-1 -p 9000 ontoportal_kb"
 
-  solr-term:
-    image: solr:9.1
-    command: bin/solr start -cloud -f
-
-  solr-prop:
+  solr:
     image: solr:9.1
     command: bin/solr start -cloud -f
 
@@ -110,5 +82,4 @@ volumes:
   redis_data:
   history:
   logs:
-  solr-term_data:
-  solr-prop_data:
+  solr_data:

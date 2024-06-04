@@ -41,10 +41,6 @@ fi
 echo "Running the Ontoportal API and CRON Setup..."
 
 
-# Step 1: Clone ontologies_linked_data repo
-echo "Cloning ontologies_linked_data repo..."
-git clone --depth=1 https://github.com/ontoportal-lirmm/ontologies_linked_data.git
-
 # Step 4: Install
 echo "Installing  (Docker in Production) dependencies..."
 if ! bundle install; then
@@ -96,15 +92,15 @@ if [ "$PROVISION" = true ]; then
     echo "Running provisioning ..."
     commands=(
         'docker compose down --volumes > /dev/null 2>&1'
-        'docker compose run --rm  4store bash -c "4s-backend-setup ontoportal_kb" > /dev/null 2>&1 '
-        'docker compose run --rm  ncbo_cron bundle exec rake user:create[admin,admin@nodomain.org] > /dev/null 2>&1'
-        "docker compose run --rm  ncbo_cron bundle exec 'bin/ncbo_ontology_import --admin-user admin --ontologies $STARTER_ONTOLOGY --from-apikey $API_KEY --from $API_URL' > /dev/null 2>&1 "
-        "docker compose run --rm  ncbo_cron bundle exec 'bin/ncbo_ontology_pull -o $STARTER_ONTOLOGY' > /dev/null 2>&1 "
-        "docker compose run --rm  ncbo_cron bundle exec 'bin/ncbo_ontology_process -o ${STARTER_ONTOLOGY}' > /dev/null 2>&1"
+        'docker compose run --rm  4store bash -c "4s-backend-setup ontoportal_kb" '
+        'docker compose run --rm  ncbo_cron bundle exec rake user:create[admin,admin@nodomain.org]'
+        "docker compose run --rm  ncbo_cron bundle exec 'bin/ncbo_ontology_import --admin-user admin --ontologies $STARTER_ONTOLOGY --from-apikey $API_KEY --from $API_URL'"
+        "docker compose run --rm  ncbo_cron bundle exec 'bin/ncbo_ontology_pull -o $STARTER_ONTOLOGY'"
+        "docker compose run --rm  ncbo_cron bundle exec 'bin/ncbo_ontology_process -o ${STARTER_ONTOLOGY}'"
     )
 
     for cmd in "${commands[@]}"; do
-        echo "Run: $cmd"
+        echo "> Run: $cmd"
         if ! eval "$cmd"; then
           echo "Error: Failed to run provisioning .  $cmd"
           exit 1
@@ -117,7 +113,7 @@ fi
 
 
 echo "Running api ..."
-docker compose run --service-ports -d api
+docker compose run --service-ports -d --rm api
 
  # Wait for API to be ready (adjust the sleep time accordingly)
 timeout=300
