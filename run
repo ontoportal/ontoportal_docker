@@ -86,7 +86,8 @@ if [ "$PROVISION" = true ]; then
     commands=(
         'docker compose down --volumes > /dev/null 2>&1'
         'docker compose run --rm  4store bash -c "4s-backend-setup ontoportal_kb" '
-        'docker compose run --rm  ncbo_cron bundle exec rake user:create[admin,admin@nodomain.org]'
+        'docker compose run --rm  ncbo_cron bundle exec rake user:create[admin,admin@nodomain.org,password]'
+        'docker compose run --rm  ncbo_cron bundle exec rake user:adminify[admin]'
         "docker compose run --rm  ncbo_cron bundle exec 'bin/ncbo_ontology_import --admin-user admin --ontologies $STARTER_ONTOLOGY --from-apikey $API_KEY --from $API_URL'"
         "docker compose run --rm  ncbo_cron bundle exec 'bin/ncbo_ontology_pull -o $STARTER_ONTOLOGY'"
         "docker compose run --rm  ncbo_cron bundle exec 'bin/ncbo_ontology_process -o ${STARTER_ONTOLOGY}'"
