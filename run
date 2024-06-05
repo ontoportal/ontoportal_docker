@@ -41,13 +41,6 @@ fi
 echo "Running the Ontoportal API and CRON Setup..."
 
 
-# Step 4: Install
-echo "Installing  (Docker in Production) dependencies..."
-if ! bundle install; then
-    echo "Error: Failed to install  dependencies."
-    exit 1
-fi
-
  # Copy .env.sample to .env
 if ! cp .env.sample .env; then
     echo "Error: Failed to copy .env.sample to .env."
