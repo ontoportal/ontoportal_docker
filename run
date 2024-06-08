@@ -9,6 +9,8 @@ PROVISION=true  # Set the default value to true
 
 # Function to display help message
 display_help() {
+    echo "Start an empty Ontoportal API with only admin user and the STY ontology. Mostly used for the UI tests."
+    echo "This script is deprecated and will be removed. Use instead ./ontoportal --help"
     echo "Usage: $0 [-k API_KEY] [-u API_URL] [-r IMAGE_REPOSITORY] [-t IMAGE_TAG] [-s STARTER_ONTOLOGY] [--no-provision]"
     exit 0
 }
@@ -84,13 +86,11 @@ if [ "$PROVISION" = true ]; then
     # Step 8: Run provisioning
     echo "Running provisioning ..."
     commands=(
-        'docker compose down --volumes > /dev/null 2>&1'
-        'docker compose run --rm  4store bash -c "4s-backend-setup ontoportal_kb" '
-        'docker compose run --rm  ncbo_cron bundle exec rake user:create[admin,admin@nodomain.org,password]'
-        'docker compose run --rm  ncbo_cron bundle exec rake user:adminify[admin]'
-        "docker compose run --rm  ncbo_cron bundle exec 'bin/ncbo_ontology_import --admin-user admin --ontologies $STARTER_ONTOLOGY --from-apikey $API_KEY --from $API_URL'"
-        "docker compose run --rm  ncbo_cron bundle exec 'bin/ncbo_ontology_pull -o $STARTER_ONTOLOGY'"
-        "docker compose run --rm  ncbo_cron bundle exec 'bin/ncbo_ontology_process -o ${STARTER_ONTOLOGY}'"
+        'docker compose  -f docker-compose_api.yml --profile 4store  down --volumes'
+        "bin/run_cron.sh $env_file_path 'bundle exec rake user:create[admin,admin@nodomain.org,password]'"
+        "bin/run_cron.sh $env_file_path 'bundle exec rake user:adminify[admin]'"
+        "bin/run_cron.sh $env_file_path 'bundle exec bin/ncbo_ontology_import --admin-user admin --ontologies $STARTER_ONTOLOGY --from-apikey $API_KEY --from $API_URL'"
+        "bin/run_cron.sh $env_file_path 'bundle exec bin/ncbo_ontology_process -o ${STARTER_ONTOLOGY}'"
     )
 
     for cmd in "${commands[@]}"; do
@@ -107,7 +107,8 @@ fi
 
 
 echo "Running api ..."
-docker compose run --service-ports -d --rm api
+
+source bin/run_api.sh start
 
  # Wait for API to be ready (adjust the sleep time accordingly)
 timeout=300
