@@ -1,30 +1,6 @@
 #!/usr/bin/env bash
 
 run_api(){
-
-	clone_ongologies_linked_data(){
-
-	  if [ -d "ontologies_linked_data" ]; then
-	      echo "[+] Directory $repo_dir already exists. Skipping cloning."
-	  else
-	    echo "[+] Cloning ontologies_linked_data repo... from $ONTOLOGIES_LINKED_DATA_LINK"
-	    git clone -q --depth=1 "$ONTOLOGIES_LINKED_DATA_LINK"
-	  fi
-
-	  echo "[+] Generating Solr configsets ..."
-	  if [ -d "ontologies_linked_data" ]; then
-	    cd ontologies_linked_data || exit 1
-	    if ! ./test/solr/generate_ncbo_configsets.sh; then
-	      echo  "[-] Error: Failed to generate Solr configsets."
-	      exit 1
-	    else
-	      echo "[+] Success: Generating Solr configsets."
-	    fi
-	    cd ..
-	  else
-	    echo "[-] Error: directory ontologies_linked_data does not exists"
-	  fi
-	}
 	source .env
 	ontologies_linked_data_link="$ONTOLOGIES_LINKED_DATA_LINK"
 	api_url="$API_URL"
@@ -123,7 +99,7 @@ start() {
 }
 
 stop() {
-  echo "[+] Stoping services"
+  echo "[+] Stopping services"
   docker container stop api-service
   docker container stop ui-service
   docker ps -a --format "{{.Names}}" | grep "ontoportal_docker" | awk '{print "docker stop " $1}' | sh
@@ -171,8 +147,8 @@ deploy(){
 }
 
 clean(){
-  echo "[+] Cleanning the server"
-  rm -rf ontologies_linked_data
+  echo "[+] Cleaning the server"
+
   rm -f docker-compose*
   docker container rm -f api-service ui-service 2>/dev/null
   docker ps -a --format "{{.Names}}" | grep "ontoportal_docker" | awk '{print "docker rm -f " $1}' | sh

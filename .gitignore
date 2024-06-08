@@ -5,3 +5,9 @@ dip.override.yml
 
 
 .kamal/hooks/
+
+docker-compose_api.yml
+
+docker-compose_ui.yml
+
+*.iml
