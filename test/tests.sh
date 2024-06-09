@@ -5,21 +5,32 @@ setup() {
     load 'test_helper/bats-assert/load'
     DIR="$( cd "$( dirname "$BATS_TEST_FILENAME" )" >/dev/null 2>&1 && pwd )"
     PATH="$DIR/../src:$PATH"
+    ./ontoportal clean -f
 }
 
 @test "Running and Stopping API" {
-  run bin/run_api.sh start
-  assert_output --partial "[+] Server is up and running!"
+  run ./ontoportal start api 
+  assert_output --partial "[+] API is up and running!"
   refute_output --partial 'error'
   refute_output --partial 'ERROR'
 
-  bin/run_api.sh stop
-
+  ./ontoportal stop api
   run docker compose -f docker-compose_api.yml ps
   assert_output "NAME      IMAGE     COMMAND   SERVICE   CREATED   STATUS    PORTS"
+}
 
-  bin/run_api.sh clean
+@test "Running and Stopping UI" {
 
-  run docker compose -f docker-compose_api.yml ps -a
+  ./ontoportal start api 
+
+  run ./ontoportal start ui
+
+  assert_output --partial "[+] UI is up and running!"
+  refute_output --partial 'error'
+  refute_output --partial 'ERROR'
+
+   ./ontoportal stop ui
+
+  run docker compose -f docker-compose_ui.yml ps
   assert_output "NAME      IMAGE     COMMAND   SERVICE   CREATED   STATUS    PORTS"
 }
