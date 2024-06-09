@@ -136,6 +136,9 @@ show_help() {
     echo "  Just put the .env file in this directory and run $0 start"
 }
 
+source utils/ontoportal_logo.sh
+
+
 case "$1" in
   "start")
   	start "$2"
