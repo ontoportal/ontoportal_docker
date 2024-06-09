@@ -1,3 +1,2 @@
 #!/usr/bin/env bash
-./test/bats/bin/bats ./test/tests.sh
-
+TERM=xterm test/bats/bin/bats -T --verbose-run test/tests.sh

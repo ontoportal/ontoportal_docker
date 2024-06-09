@@ -1,0 +1,17 @@
+name: "Run docker scripts tests CI"
+
+on:
+  push:
+  pull_request:
+    types: [opened, reopened]
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+        with:
+          submodules: "recursive" # Make sure submodules are fetched recursively
+
+      - name: Run OntoPortal Docker tests
+        run: test/run_tests.sh
