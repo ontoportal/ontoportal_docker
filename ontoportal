@@ -45,9 +45,19 @@ clean() {
 }
 
 update() {
-  echo "[+] Updating UI and API images to latest version"
-  ./bin/run_api.sh update
-  ./bin/run_ui.sh update
+  SERVICE=$(which_service "$1")
+
+  if [ "$SERVICE" == "api" ]; then
+    echo "[+] Updating API images to latest version"
+    ./bin/run_api.sh update
+  elif [ "$SERVICE" == "ui" ]; then
+    echo "[+] Updating UI images to latest version"
+    ./bin/run_ui.sh update
+  else
+    echo "[+] Updating UI and API images to latest version"
+    ./bin/run_api.sh update
+    ./bin/run_ui.sh update
+  fi
 }
 
 stop() {
@@ -65,15 +75,14 @@ stop() {
   fi
 }
 
-log() {
+logs() {
   SERVICE=$(which_service "$1")
 
-  echo "[+] Stopping $SERVICE services"
 
   if [ "$SERVICE" == "api" ]; then
-    ./bin/run_api.sh log
+    ./bin/run_api.sh logs
   elif [ "$SERVICE" == "ui" ]; then
-    ./bin/run_ui.sh log
+    ./bin/run_ui.sh logs
   else
     echo "Choose which service to display logs API or UI"
   fi
@@ -102,6 +111,10 @@ start() {
   elif [ "$SERVICE" == "ui" ]; then
     ./bin/run_ui.sh start
   else
+    # Update API_URL to api-service:9393 in run script
+    env_content=$(<"./.env")
+    env_content="${env_content//API_URL=http:\/\/localhost:9393/API_URL=http:\/\/api-service:9393}"
+    echo "$env_content" >"./.env"
     ./bin/run_api.sh start
     ./bin/run_ui.sh start
   fi
@@ -128,26 +141,29 @@ source utils/ontoportal_logo.sh
 setup
 
 case "$1" in
-"start")
-  start "$2"
-  ;;
-"deploy")
-  deploy "$2"
-  ;;
-"stop")
-  stop "$2"
-  ;;
-"clean")
-  clean "$2"
-  ;;
-"update")
-  clean "$2"
-  ;;
-"help")
-  show_help
-  ;;
-*)
-  show_help
-  exit 1
-  ;;
+  "start")
+    start "$2"
+    ;;
+  "deploy")
+    deploy "$2"
+    ;;
+  "stop")
+    stop "$2"
+    ;;
+  "clean")
+    clean "$2"
+    ;;
+  "update")
+    update "$2"
+    ;;
+  "logs")
+    logs "$2"
+    ;;
+  "help")
+    show_help
+    ;;
+  *)
+    show_help
+    exit 1
+    ;;
 esac
