@@ -91,11 +91,11 @@ if [ "$PROVISION" = true ]; then
     # Step 8: Run provisioning
     echo "Running provisioning ..."
     commands=(
-        'docker compose  -f docker-compose_api.yml --profile 4store  down --volumes'
-        "bin/run_cron.sh bundle exec rake user:create[admin,admin@nodomain.org,password]'"
-        "bin/run_cron.sh bundle exec rake user:adminify[admin]'"
-        "bin/run_cron.sh bundle exec bin/ncbo_ontology_import --admin-user admin --ontologies $STARTER_ONTOLOGY --from-apikey $API_KEY --from $API_URL'"
-        "bin/run_cron.sh bundle exec bin/ncbo_ontology_process -o ${STARTER_ONTOLOGY}'"
+        './ontoportal clean -f'
+        "bin/run_cron.sh 'bundle exec rake user:create[admin,admin@nodomain.org,password]'"
+        "bin/run_cron.sh 'bundle exec rake user:adminify[admin]'"
+        "bin/run_cron.sh 'bundle exec bin/ncbo_ontology_import --admin-user admin --ontologies $STARTER_ONTOLOGY --from-apikey $API_KEY --from $API_URL'"
+        "bin/run_cron.sh 'bundle exec bin/ncbo_ontology_process -o ${STARTER_ONTOLOGY}'"
     )
 
     for cmd in "${commands[@]}"; do
@@ -113,12 +113,3 @@ echo "Running api ..."
 
 bin/run_api.sh start
 
-# Wait for API to be ready (adjust the sleep time accordingly)
-source utils/loading_animation.sh "[+] Waiting for the server http://localhost:9393 to be up..." "http://localhost:9393" 300
-
-if status_ok; then
-    echo "[+] API is up and running!"
-else
-    echo "[x] Timed out waiting for the server to be up."
-    exit 1
-fi
