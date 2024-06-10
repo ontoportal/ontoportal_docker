@@ -24,7 +24,7 @@ status_ok() {
   curl -sSf http://localhost:3000 >/dev/null 2>&1
 }
 
-log() {
+logs() {
   docker logs ui-service -f
 }
 
@@ -34,8 +34,9 @@ update() {
 
 clean() {
   echo "[+] Cleaning the UI containers"
-  docker container rm -f ui-service
-  docker compose -f docker-compose_ui.yml down --volumes
+  docker container rm -f ui-service >/dev/null 2>&1
+  docker compose -f docker-compose_ui.yml down --volumes >/dev/null 2>&1
+  rm -f docker-compose_ui.yml >/dev/null 2>&1
 }
 
 stop() {
@@ -95,7 +96,8 @@ run() {
 }
 
 start() {
-
+  setup
+  update
   echo "[+] Running ui script"
   run
   if [ $? -ne 0 ]; then
@@ -121,28 +123,30 @@ if [[ $# -eq 0 ]]; then
   usage
 fi
 
-setup
 
 case $1 in
-start)
-  start "$2"
-  ;;
-stop)
-  stop
-  ;;
-logs)
-  log
-  ;;
-clean)
-  clean
-  ;;
-update)
-  update
-  ;;
-*)
-  echo "Invalid option: $1"
-  usage
-  ;;
+  start)
+    start "$2"
+    ;;
+  stop)
+    stop
+    ;;
+  logs)
+    logs
+    ;;
+  clean)
+    clean
+    ;;
+  update)
+    update
+    ;;
+  setup)
+    setup
+    ;;
+  *)
+    echo "Invalid option: $1"
+    usage
+    ;;
 esac
 
 exit 0

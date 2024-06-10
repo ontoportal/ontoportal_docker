@@ -24,14 +24,15 @@ status_ok() {
   curl -sSf http://localhost:9393 >/dev/null 2>&1
 }
 
-log() {
+logs() {
   docker exec -it api-service tail -f log/production.log
 }
 
 clean() {
   echo "[+] Cleaning the API containers"
-  docker container rm -f api-service
-  docker compose -f docker-compose_api.yml --profile 4store down --volumes
+  docker container rm -f api-service >/dev/null 2>&1
+  docker compose -f docker-compose_api.yml --profile 4store down --volumes >/dev/null 2>&1
+  rm -f docker-compose_api.yml >/dev/null 2>&1
 }
 
 update() {
@@ -45,6 +46,8 @@ stop() {
 }
 
 start() {
+  setup
+  update
   echo "[+] Running api script"
 
   local env_path='.env'
@@ -98,28 +101,30 @@ if [[ $# -eq 0 ]]; then
   usage
 fi
 
-setup
 
 case $1 in
-start)
-  start "$2"
-  ;;
-stop)
-  stop
-  ;;
-logs)
-  log
-  ;;
-clean)
-  clean
-  ;;
-update)
-  update
-  ;;
-*)
-  echo "Invalid option: $1"
-  usage
-  ;;
+  start)
+    start "$2"
+    ;;
+  stop)
+    stop
+    ;;
+  logs)
+    logs
+    ;;
+  clean)
+    clean
+    ;;
+  update)
+    update
+    ;;
+  setup)
+    setup
+    ;;
+  *)
+    echo "Invalid option: $1"
+    usage
+    ;;
 esac
 
 exit 0
