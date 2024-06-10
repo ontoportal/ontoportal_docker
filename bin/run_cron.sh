@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 setup() {
-	./run_api.sh setup >/dev/null 2>&1
+	bin/run_api.sh setup
 }
 
 start() {
@@ -20,7 +20,6 @@ start() {
 
 	echo "[+] Starting the CRON"
 	eval "$docker_run_cmd"
-	run_cron "$env_path" "$2"
 
 	if [ $? -ne 0 ]; then
 		echo "[-] Error in run_con function. Exiting..."
