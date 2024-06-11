@@ -23,9 +23,8 @@ setup() {
 @test "Running and Stopping UI" {
    ./ontoportal clean -f
 
-  ./ontoportal start api 
-
-  run ./ontoportal start ui
+  # this will start local api and the ui
+  run ./ontoportal start
 
   assert_output --partial "[+] UI is up and running!"
   refute_output --partial 'error'
