@@ -1,7 +1,4 @@
 #!/usr/bin/env bash
-setup() {
-	bin/run_api.sh setup
-}
 
 start() {
 	local env_path='.env'
@@ -29,5 +26,4 @@ start() {
 	echo "[+] The CRON is running successfully."
 }
 
-setup
 start "$1"

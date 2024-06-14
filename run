@@ -82,34 +82,10 @@ env_content="${env_content//IMAGE_TAG=latest/IMAGE_TAG=$IMAGE_TAG}"
 # Write the modified content back to the .env file
 echo "$env_content" >"$env_file_path"
 
-# Step 8: Run provisioning
-if [ "$PROVISION" = true ]; then
-    echo "Running the Ontoportal API and CRON Setup..."
 
-    # ... (rest of the script remains unchanged)
-
-    # Step 8: Run provisioning
-    echo "Running provisioning ..."
-    commands=(
-        './ontoportal clean -f'
-        "bin/run_cron.sh 'bundle exec rake user:create[admin,admin@nodomain.org,password]'"
-        "bin/run_cron.sh 'bundle exec rake user:adminify[admin]'"
-        "bin/run_cron.sh 'bundle exec bin/ncbo_ontology_import --admin-user admin --ontologies $STARTER_ONTOLOGY --from-apikey $API_KEY --from $API_URL'"
-        "bin/run_cron.sh 'bundle exec bin/ncbo_ontology_process -o ${STARTER_ONTOLOGY}'"
-    )
-
-    for cmd in "${commands[@]}"; do
-        echo "> Run: $cmd"
-        if ! eval "$cmd"; then
-            echo "Error: Failed to run provisioning .  $cmd"
-            exit 1
-        fi
-    done
-
-    echo "Setup completed successfully!"
+if [ "$PROVISION" = false ]; then
+    bin/run_api.sh start --no-provision
+else
+    bin/run_api.sh start
 fi
-
-echo "Running api ..."
-
-bin/run_api.sh start
 

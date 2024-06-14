@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 setup() {
+  echo "[+] Setup"
   if [ -f ".env" ]; then
     echo "[+] Env file exist"
   else
@@ -93,30 +94,42 @@ deploy() {
 }
 
 start() {
-  if [ -z "$1" ]; then
-    SERVICE="ontoportal"
-  else
-    SERVICE="$1"
-  fi
-
-  SERVICE=$(which_service "$1")
+  local service=""
+  local provision=""
+  for arg in "$@"
+  do
+    case "$arg" in
+      "api" | "ui")
+        service="$arg"
+        ;;
+      "--no-provision")
+        provision="--no-provision"
+        ;;
+      *)
+        echo "Invalid argument: $arg"
+        return 1
+        ;;
+    esac
+  done
 
   # Update SERVICE variable in .env
-  awk -v SERVICE="$SERVICE" '/^SERVICE=/{sub(/=.*/, "=" SERVICE)} 1' .env >temp && mv temp .env
+  SERVICE=$(which_service "$service")
+  sed -i "s/^SERVICE=.*/SERVICE=$SERVICE/" ".env"
 
   source .env
 
   if [ "$SERVICE" == "api" ]; then
-    ./bin/run_api.sh start
+    sed -i 's/API_URL=http:\/\/api-service:9393/API_URL=http:\/\/localhost:9393/' .env
+    ./bin/run_api.sh start "$provision"
   elif [ "$SERVICE" == "ui" ]; then
     ./bin/run_ui.sh start
-  else
-    # Update API_URL to api-service:9393 in run script
-    env_content=$(<"./.env")
-    env_content="${env_content//API_URL=http:\/\/localhost:9393/API_URL=http:\/\/api-service:9393}"
-    echo "$env_content" >"./.env"
-    ./bin/run_api.sh start
+  elif [ "$SERVICE" == "ontoportal" ]; then
+    sed -i 's/API_URL=http:\/\/localhost:9393/API_URL=http:\/\/api-service:9393/' .env
+    ./bin/run_api.sh start "$provision"
     ./bin/run_ui.sh start
+  else
+    echo "[x] Service not recognized, Exiting"
+    exit 1
   fi
 }
 
@@ -142,7 +155,8 @@ setup
 
 case "$1" in
   "start")
-    start "$2"
+    shift
+    start "$@"
     ;;
   "deploy")
     deploy "$2"

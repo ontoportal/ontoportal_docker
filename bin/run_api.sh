@@ -51,10 +51,33 @@ stop() {
   docker compose -f docker-compose_api.yml --profile 4store stop
 }
 
-start() {
-  setup
-  update
-  echo "[+] Running api script"
+provision() {
+  if [ -z "$1" ]; then
+    PROVISION= true
+    sed -i 's/^PROVISION=.*/PROVISION=true/' ".env"
+    source .env
+    clean_containers
+    echo "[+] Running Cron provisioning"
+    commands=(
+        "bin/run_cron.sh 'bundle exec rake user:create[admin,admin@nodomain.org,password]' >/dev/null 2>&1"
+        "bin/run_cron.sh 'bundle exec rake user:adminify[admin]' >/dev/null 2>&1"
+        "bin/run_cron.sh 'bundle exec bin/ncbo_ontology_import --admin-user admin --ontologies $STARTER_ONTOLOGY --from-apikey $OP_APIKEY --from $OP_API_URL' >/dev/null 2>&1"
+        "bin/run_cron.sh 'bundle exec bin/ncbo_ontology_process -o ${STARTER_ONTOLOGY}' >/dev/null 2>&1"
+    )
+    for cmd in "${commands[@]}"; do
+        echo "[+] Run: $cmd"
+        if ! eval "$cmd"; then
+            echo "Error: Failed to run provisioning .  $cmd"
+            exit 1
+        fi
+    done
+    echo "CRON Setup completed successfully!"
+  elif [ "$1" == "--no-provision" ]; then
+    PROVISION= false
+    sed -i 's/^PROVISION=.*/PROVISION=false/' ".env"
+    echo "[+] Skipping Cron provisioning"
+  fi
+}
 
 run() {
   local env_path='.env'
@@ -62,15 +85,11 @@ run() {
   source "$env_path"
 
   if [ -z "$API_URL" ]; then
-
-  if [ -z "$api_url" ]; then
     echo "[-] Error: Missing required configurations. Please provide the API_URL in your .env file"
     exit 1
   fi
 
   bash_cmd="rm -fr tmp/pids/unicorn.pid && (bundle check || bundle install) && bundle exec unicorn -c config/unicorn.rb -E production -l 9393"
-  #bash_cmd="bash"
-
   docker_run_cmd="docker compose -f docker-compose_api.yml -p ontoportal_docker run --remove-orphans --name api-service --rm -d  --service-ports api bash -c \"$bash_cmd\""
   echo "[+] Starting the API"
   eval "$docker_run_cmd"
@@ -96,6 +115,7 @@ start() {
   echo "[+] Running api script"
   setup
   update
+  provision "$1"
   run
   if [ $? -ne 0 ]; then
     echo "[-] Error Running API. Exiting..."
