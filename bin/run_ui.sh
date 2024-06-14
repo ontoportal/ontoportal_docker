@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 setup() {
+  echo "[+] Setup UI"
   local env_path='.env'
 
   if [ -z "$env_path" ]; then
@@ -32,10 +33,14 @@ update() {
   docker compose -f docker-compose_ui.yml pull
 }
 
-clean() {
+clean_containers() {
   echo "[+] Cleaning the UI containers"
   docker container rm -f ui-service >/dev/null 2>&1
   docker compose -f docker-compose_ui.yml down --volumes >/dev/null 2>&1
+}
+
+clean() {
+  clean_containers
   rm -f docker-compose_ui.yml >/dev/null 2>&1
 }
 
@@ -96,15 +101,14 @@ run() {
 }
 
 start() {
+  echo "[+] Running ui script"
   setup
   update
-  echo "[+] Running ui script"
   run
   if [ $? -ne 0 ]; then
-    echo "[-] Error in run_ui function. Exiting..."
+    echo "[-] Error Running UI. Exiting..."
     exit 1
   fi
-  echo "[+] The UI is running successfully."
 }
 
 usage() {
@@ -125,22 +129,22 @@ fi
 
 
 case $1 in
-  start)
+  "start")
     start "$2"
     ;;
-  stop)
+  "stop")
     stop
     ;;
-  logs)
+  "logs")
     logs
     ;;
-  clean)
+  "clean")
     clean
     ;;
-  update)
+  "update")
     update
     ;;
-  setup)
+  "setup")
     setup
     ;;
   *)

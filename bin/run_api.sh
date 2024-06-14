@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 setup() {
+  echo "[+] Setup API"
   local env_path='.env'
   if [ -z "$env_path" ]; then
     echo "[-] Error: Missing required configurations. Please provide the path to your .env file"
@@ -28,14 +29,19 @@ logs() {
   docker exec -it api-service tail -f log/production.log
 }
 
-clean() {
+clean_containers() {
   echo "[+] Cleaning the API containers"
   docker container rm -f api-service >/dev/null 2>&1
   docker compose -f docker-compose_api.yml --profile 4store down --volumes >/dev/null 2>&1
+}
+
+clean() {
+  clean_containers
   rm -f docker-compose_api.yml >/dev/null 2>&1
 }
 
 update() {
+  echo "[+] Pulling latest images for api"
   docker compose -f docker-compose_api.yml --profile 4store pull
 }
 
@@ -50,11 +56,12 @@ start() {
   update
   echo "[+] Running api script"
 
+run() {
   local env_path='.env'
 
   source "$env_path"
 
-  local api_url="$API_URL"
+  if [ -z "$API_URL" ]; then
 
   if [ -z "$api_url" ]; then
     echo "[-] Error: Missing required configurations. Please provide the API_URL in your .env file"
@@ -85,6 +92,17 @@ start() {
   fi
 }
 
+start() {
+  echo "[+] Running api script"
+  setup
+  update
+  run
+  if [ $? -ne 0 ]; then
+    echo "[-] Error Running API. Exiting..."
+    exit 1
+  fi
+}
+
 usage() {
   echo "Usage: $0 <option>"
   echo "Options:"
@@ -103,22 +121,22 @@ fi
 
 
 case $1 in
-  start)
+  "start")
     start "$2"
     ;;
-  stop)
+  "stop")
     stop
     ;;
-  logs)
+  "logs")
     logs
     ;;
-  clean)
+  "clean")
     clean
     ;;
-  update)
+  "update")
     update
     ;;
-  setup)
+  "setup")
     setup
     ;;
   *)
