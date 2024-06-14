@@ -134,19 +134,32 @@ start() {
 }
 
 show_help() {
-  echo "Usage: $0 <command>"
+  echo "Usage: $0 <command> [arguments]"
   echo
   echo "Commands:"
-  echo "  start   : Start the ontologies API and UI (Default Mode / Personilized Mode)"
-  echo "  deploy  : Deploy the application using Kamal to the server"
-  echo "  stop    : Stop the API and UI services"
-  echo "  clean   : Clean up the server, WARNING: remove the data, docker-compose files, and all containers"
-  echo "  update  : Pull and update the containers (UI & API) versions to the latest version"
-  echo "  help    : Show this help message"
+  echo "  start   : Start the ontologies API and UI in either Default Mode or Personalized Mode."
+  echo "            Usage: $0 start [api|ui] [--no-provision]"
+  echo "            --no-provision: Start the appliance without any data (an empty appliance)."
+  echo
+  echo "  deploy  : Deploy the application using Kamal to the server."
+  echo "            Usage: $0 deploy [api|ui]"
+  echo
+  echo "  stop    : Stop the API and UI services."
+  echo "            Usage: $0 stop [api|ui]"
+  echo
+  echo "  clean   : Clean up the server. WARNING: This removes all data, docker-compose files, and containers."
+  echo "            Usage: $0 clean [-f]"
+  echo "            -f, --force   : Force clean the server without prompting for confirmation."
+  echo
+  echo "  update  : Pull and update the UI and API container versions to the latest versions."
+  echo "            Usage: $0 update"
+  echo
+  echo "  help    : Show this help message."
+  echo "            Usage: $0 help"
   echo
   echo "Additional notes:"
-  echo "- You can provide your own .env file to customize parameters:"
-  echo "  Just put the .env file in this directory and run $0 start"
+  echo "  - You can provide your own .env file to customize parameters:"
+  echo "    Place the .env file in this directory and run '$0 start'."
 }
 
 source utils/ontoportal_logo.sh
