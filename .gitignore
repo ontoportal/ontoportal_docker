@@ -11,3 +11,4 @@ docker-compose_api.yml
 docker-compose_ui.yml
 
 *.iml
+/config/deploy.yml
