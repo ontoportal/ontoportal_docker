@@ -93,7 +93,7 @@ run() {
   local HOST_IP='localhost'
   if [ -f "/.dockerenv" ]; then
     # we are inside the container of ontoportal_docker so we have to test the IP of the machine
-    docker_host_IP=$(getent hosts host.docker.internal | awk '{ print $1 }')
+    docker_host_IP=$(dig +short A host.docker.internal)
     if [ -n "$docker_host_IP" ]; then
       echo "IP of the local machine: $docker_host_IP"
       HOST_IP=$docker_host_IP
