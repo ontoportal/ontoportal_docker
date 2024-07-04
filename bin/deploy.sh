@@ -38,11 +38,17 @@ deploy() {
 	echo "run_directory: /root/app" >> config/deploy.yml
 	echo -e "registry:\n  username:\n    - ${DOCKER_REGISTRY_NAME}\n  password:\n    - ${KAMAL_REGISTRY_PASSWORD}" >>config/deploy.yml
 	echo -e "ssh:\n  user: ${SSH_USER}" >> config/deploy.yml
-	echo "volumes: /var/run/docker.sock:/var/run/docker.sock" >> config/deploy.yml
+	echo -e "volumes:\n  - /var/run/docker.sock:/var/run/docker.sock" >> config/deploy.yml
 	echo -e "traefik:\n  host_port: 4000" >> config/deploy.yml
 	echo -e "healthcheck:\n  cmd: /bin/true" >> config/deploy.yml
-	echo "[+] Starting the deployment"
-	kamal setup -vv
+	if [ -z "$1" ]; then
+	    echo "[+] Starting the deployment"
+    	kamal setup -vv
+	elif [ "$1" == "push" ]; then
+    	echo "[+] Pushing image to Docker Hub without deploying to server"
+    	kamal build push -vv
+	fi
+
 }
 
 deploy "$1"
