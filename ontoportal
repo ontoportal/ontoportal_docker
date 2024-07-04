@@ -93,19 +93,6 @@ deploy() {
   ./bin/deploy.sh "$1"
 }
 
-resolve_api_domain(){
-  local api_domain='api-service'
-  if [ -f "/.dockerenv" ]; then
-    # we are inside the container of ontoportal_docker so we have to test the IP of the machine
-    docker_host_IP=$(getent hosts host.docker.internal | awk '{ print $1 }')
-    if [ -n "$docker_host_IP" ]; then
-      api_domain=$docker_host_IP
-    else
-      echo "Cannot get the IP address of the host machine, api-service will be used"
-    fi
-  fi
-  echo "$api_domain"
-}
 
 start() {
   local service=""
@@ -138,8 +125,7 @@ start() {
   elif [ "$SERVICE" == "ui" ]; then
     ./bin/run_ui.sh start
   elif [ "$SERVICE" == "ontoportal" ]; then
-    docker_host_IP=$(resolve_api_domain)
-    awk -v docker_host_IP="$docker_host_IP" '/^API_URL=/ {sub(/^API_URL=.*/, "API_URL=http://" docker_host_IP ":9393")} 1' .env > temp && mv temp .env
+    awk '/^API_URL=/ {sub(/^API_URL=.*/, "API_URL=http://api-service:9393")} 1' .env > temp && mv temp .env   
     ./bin/run_api.sh start "$provision"
     ./bin/run_ui.sh start
   else
