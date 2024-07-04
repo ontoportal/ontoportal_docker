@@ -22,7 +22,7 @@ setup() {
 }
 
 status_ok() {
-  curl -sSf http://localhost:9393 >/dev/null 2>&1
+  curl -sSf http://$1:9393 >/dev/null 2>&1
 }
 
 logs() {
@@ -53,8 +53,6 @@ stop() {
 
 provision() {
   if [ -z "$1" ]; then
-    PROVISION= true
-    sed -i 's/^PROVISION=.*/PROVISION=true/' ".env"
     source .env
     clean_containers
     echo "[+] Running Cron provisioning"
@@ -73,8 +71,6 @@ provision() {
     done
     echo "CRON Setup completed successfully!"
   elif [ "$1" == "--no-provision" ]; then
-    PROVISION= false
-    sed -i 's/^PROVISION=.*/PROVISION=false/' ".env"
     echo "[+] Skipping Cron provisioning"
   fi
 }
@@ -101,9 +97,20 @@ run() {
     eval "$docker_run_cmd > /dev/null 2>&1;"
   fi
 
-  source utils/loading_animation.sh "[+] Waiting for the server http://localhost:9393 to be up..." "http://localhost:9393" 300
+  local HOST_IP='localhost'
+  if [ -f "/.dockerenv" ]; then
+    # we are inside the container of ontoportal_docker so we have to test the IP of the machine
+    docker_host_IP=$(getent hosts host.docker.internal | awk '{ print $1 }')
+    if [ -n "$docker_host_IP" ]; then
+      echo "IP of the local machine: $docker_host_IP"
+      HOST_IP=$docker_host_IP
+    else
+      echo "Cannot get the IP address of the host machine, localhost will be used"
+    fi
+  fi
+  source utils/loading_animation.sh "[+] Waiting for the server http://$HOST_IP:9393 to be up..." "http://$HOST_IP:9393" 300
 
-  if status_ok; then
+  if status_ok $HOST_IP; then
     echo "[+] API is up and running!"
   else
     echo "[x] Timed out waiting for the server to be up."

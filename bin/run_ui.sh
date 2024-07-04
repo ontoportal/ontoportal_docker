@@ -22,7 +22,7 @@ setup() {
 }
 
 status_ok() {
-  curl -sSf http://localhost:3000 >/dev/null 2>&1
+  curl -sSf http://$1:3000 >/dev/null 2>&1
 }
 
 logs() {
@@ -90,9 +90,20 @@ run() {
     exit 1
   fi
 
-  source utils/loading_animation.sh "[+] Waiting for the server http://localhost:3000 to be up..." "http://localhost:3000" 300
+  local HOST_IP='localhost'
+  if [ -f "/.dockerenv" ]; then
+    # we are inside the container of ontoportal_docker so we have to test the IP of the machine
+    docker_host_IP=$(getent hosts host.docker.internal | awk '{ print $1 }')
+    if [ -n "$docker_host_IP" ]; then
+      echo "IP of the local machine: $docker_host_IP"
+      HOST_IP=$docker_host_IP
+    else
+      echo "Cannot get the IP address of the host machine, localhost will be used"
+    fi
+  fi
+  source utils/loading_animation.sh "[+] Waiting for the server http://$HOST_IP:3000 to be up..." "http://$HOST_IP:3000" 300
 
-  if status_ok; then
+  if status_ok $HOST_IP; then
     echo "[+] UI is up and running!"
   else
     echo "[x] Timed out waiting for the UI to be up."
