@@ -1,0 +1,17 @@
+service: ontoportal_docker
+image: ENV["IMAGE_NAME"]
+servers:
+  - ENV["SERVER_IP"]
+registry:
+  username:
+    - ENV["DOCKER_REGISTRY_NAME"]
+  password:
+    - ENV["KAMAL_REGISTRY_PASSWORD"]
+ssh:
+  user: ENV["SSH_USER"]
+run_directory: /root/app
+volumes: /var/run/docker.sock:/var/run/docker.sock
+traefik:
+  host_port: 4000
+healthcheck:
+  cmd: /bin/true

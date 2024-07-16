@@ -1,0 +1,91 @@
+#!/usr/bin/env bash
+
+# Default values
+API_URL="https://data.bioontology.org"
+STARTER_ONTOLOGY="STY"
+IMAGE_REPOSITORY="bioportal"
+IMAGE_TAG="latest"
+PROVISION=true # Set the default value to true
+
+# Function to display help message
+display_help() {
+    echo "Start an empty Ontoportal API with only admin user and the STY ontology. Mostly used for the UI tests."
+    echo "This script is deprecated and will be removed. Use instead ./ontoportal --help"
+    echo "Usage: $0 [-k API_KEY] [-u API_URL] [-r IMAGE_REPOSITORY] [-t IMAGE_TAG] [-s STARTER_ONTOLOGY] [--no-provision]"
+    exit 0
+}
+
+# Parse command line options
+while getopts ":k:u:r:t:s:-:h" opt; do
+    case $opt in
+    k) API_KEY="$OPTARG" ;;
+    u) API_URL="$OPTARG" ;;
+    r) IMAGE_REPOSITORY="$OPTARG" ;;
+    t) IMAGE_TAG="$OPTARG" ;;
+    s) STARTER_ONTOLOGY="$OPTARG" ;;
+    h) display_help ;;
+    -) case "${OPTARG}" in
+        no-provision) PROVISION=false ;;
+        help) display_help ;;
+        esac ;;
+    \?)
+        echo "Invalid option: -$OPTARG" >&2
+        exit 1
+        ;;
+    :)
+        echo "Option -$OPTARG requires an argument." >&2
+        exit 1
+        ;;
+    esac
+done
+
+# Check if required arguments are provided
+if [ -z "$API_KEY" ]; then
+    echo "Error: Missing required argument. Please provide API_KEY."
+    echo "See help using -h, --help"
+    exit 1
+fi
+
+echo "Running the Ontoportal API and CRON Setup..."
+
+# Copy .env.sample to .env
+if ! cp .env.sample .env; then
+    echo "Error: Failed to copy .env.sample to .env."
+    exit 1
+fi
+
+env_file_path="./.env"
+
+# Read the content of .env file
+env_content=$(<"$env_file_path")
+
+# Export bioportal APIKEY, update OP_APIKEY and OP_API_URL in .env file
+echo "Exporting bioportal APIKEY..."
+env_content="${env_content//OP_APIKEY=<YOUR ONTOPORTAL API KEY>/OP_APIKEY=$API_KEY}"
+
+# Update OP_API_URL in .env file with provided API_URL argument
+echo "Updating OP_API_URL in .env file..."
+env_content="${env_content//OP_API_URL=\"https:\/\/data.bioontology.org\"/OP_API_URL=$API_URL}"
+
+# Update STARTER_ONTOLOGY in .env file with provided STARTER_ONTOLOGY argument
+echo "Updating STARTER_ONTOLOGY in .env file..."
+env_content="${env_content//STARTER_ONTOLOGY=\"STY\"/STARTER_ONTOLOGY=$STARTER_ONTOLOGY}"
+
+# Update IMAGE_REPOSITORY in .env file with provided IMAGE_REPOSITORY argument
+echo "Updating IMAGE_REPOSITORY in .env file..."
+env_content="${env_content//IMAGE_REPOSITORY=bioportal/IMAGE_REPOSITORY=$IMAGE_REPOSITORY}"
+
+# Update IMAGE_TAG in .env file with provided IMAGE_TAG argument
+echo "Updating IMAGE_TAG in .env file..."
+env_content="${env_content//IMAGE_TAG=latest/IMAGE_TAG=$IMAGE_TAG}"
+
+# Write the modified content back to the .env file
+echo "$env_content" >"$env_file_path"
+
+
+if [ "$PROVISION" = false ]; then
+    bin/run_api.sh start --no-provision
+else
+    bin/run_api.sh start
+fi
+

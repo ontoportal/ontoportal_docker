@@ -1,0 +1,197 @@
+#!/usr/bin/env bash
+setup() {
+  echo "[+] Setup"
+  if [ -f ".env" ]; then
+    echo "[+] Env file exist"
+  else
+    echo "[+] Env file does not exist"
+    cp .env.sample .env
+  fi
+}
+
+which_service() {
+  if [ -z "$1" ]; then
+    SERVICE="ontoportal"
+  else
+    SERVICE="$1"
+  fi
+
+  echo "$SERVICE"
+}
+
+clean() {
+  echo "[+] Cleaning the server"
+
+  # Check if the -f flag is set
+  FORCE=false
+  for arg in "$@"; do
+    if [ "$arg" == "-f" ]; then
+      FORCE=true
+      break
+    fi
+  done
+
+  if [ "$FORCE" == true ]; then
+    answer="y"
+  else
+    read -p "Too risky and not needed in production, useful only locally to reset all the containers and volumes. Do you want to continue? (y/n): " answer
+  fi
+
+  if [[ "$answer" == "y" ]]; then
+    ./bin/run_ui.sh clean
+    ./bin/run_api.sh clean
+  else
+    echo "You chose to exit. Goodbye!"
+  fi
+}
+
+update() {
+  SERVICE=$(which_service "$1")
+
+  if [ "$SERVICE" == "api" ]; then
+    echo "[+] Updating API images to latest version"
+    ./bin/run_api.sh update
+  elif [ "$SERVICE" == "ui" ]; then
+    echo "[+] Updating UI images to latest version"
+    ./bin/run_ui.sh update
+  else
+    echo "[+] Updating UI and API images to latest version"
+    ./bin/run_api.sh update
+    ./bin/run_ui.sh update
+  fi
+}
+
+stop() {
+  SERVICE=$(which_service "$1")
+
+  echo "[+] Stopping $SERVICE services"
+
+  if [ "$SERVICE" == "api" ]; then
+    ./bin/run_api.sh stop
+  elif [ "$SERVICE" == "ui" ]; then
+    ./bin/run_ui.sh stop
+  else
+    ./bin/run_ui.sh stop
+    ./bin/run_api.sh stop
+  fi
+}
+
+logs() {
+  SERVICE=$(which_service "$1")
+
+
+  if [ "$SERVICE" == "api" ]; then
+    ./bin/run_api.sh logs
+  elif [ "$SERVICE" == "ui" ]; then
+    ./bin/run_ui.sh logs
+  else
+    echo "Choose which service to display logs API or UI"
+  fi
+}
+
+deploy() {
+  ./bin/deploy.sh "$1"
+}
+
+
+start() {
+  local service=""
+  local provision=""
+  for arg in "$@"
+  do
+    case "$arg" in
+      "api" | "ui")
+        service="$arg"
+        ;;
+      "--no-provision")
+        provision="--no-provision"
+        ;;
+      *)
+        echo "Invalid argument: $arg"
+        return 1
+        ;;
+    esac
+  done
+
+  # Update SERVICE variable in .env
+  SERVICE=$(which_service "$service")
+  awk -v SERVICE="$SERVICE" '/^SERVICE=/{sub(/=.*/, "=" SERVICE)} 1' .env >temp && mv temp .env
+
+  source .env
+
+  if [ "$SERVICE" == "api" ]; then
+    awk '/^API_URL=/ {sub(/^API_URL=.*/, "API_URL=http://localhost:9393")} 1' .env > temp && mv temp .env
+    ./bin/run_api.sh start "$provision"
+  elif [ "$SERVICE" == "ui" ]; then
+    ./bin/run_ui.sh start
+  elif [ "$SERVICE" == "ontoportal" ]; then
+    awk '/^API_URL=/ {sub(/^API_URL=.*/, "API_URL=http://api-service:9393")} 1' .env > temp && mv temp .env   
+    ./bin/run_api.sh start "$provision"
+    ./bin/run_ui.sh start
+  else
+    echo "[x] Service not recognized, Exiting"
+    exit 1
+  fi
+}
+
+show_help() {
+  echo "Usage: $0 <command> [arguments]"
+  echo
+  echo "Commands:"
+  echo "  start   : Start the ontologies API and UI in either Default Mode or Personalized Mode."
+  echo "            Usage: $0 start [api|ui] [--no-provision]"
+  echo "            --no-provision: Start the appliance without any data (an empty appliance)."
+  echo
+  echo "  deploy  : Deploy the application using Kamal to the server."
+  echo "            Usage: $0 deploy [api|ui]"
+  echo
+  echo "  stop    : Stop the API and UI services."
+  echo "            Usage: $0 stop [api|ui]"
+  echo
+  echo "  clean   : Clean up the server. WARNING: This removes all data, docker-compose files, and containers."
+  echo "            Usage: $0 clean [-f]"
+  echo "            -f, --force   : Force clean the server without prompting for confirmation."
+  echo
+  echo "  update  : Pull and update the UI and API container versions to the latest versions."
+  echo "            Usage: $0 update"
+  echo
+  echo "  help    : Show this help message."
+  echo "            Usage: $0 help"
+  echo
+  echo "Additional notes:"
+  echo "  - You can provide your own .env file to customize parameters:"
+  echo "    Place the .env file in this directory and run '$0 start'."
+}
+
+source utils/ontoportal_logo.sh
+
+setup
+
+case "$1" in
+  "start")
+    shift
+    start "$@"
+    ;;
+  "deploy")
+    deploy "$2"
+    ;;
+  "stop")
+    stop "$2"
+    ;;
+  "clean")
+    clean "$2"
+    ;;
+  "update")
+    update "$2"
+    ;;
+  "logs")
+    logs "$2"
+    ;;
+  "help")
+    show_help
+    ;;
+  *)
+    show_help
+    exit 1
+    ;;
+esac
